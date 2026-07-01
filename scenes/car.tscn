@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3 uid="uid://bdgd5ldjv05fs"]
+
+[ext_resource type="Texture2D" uid="uid://b1ph77f28ytty" path="res://assets/Charactor/Car collection-01.png" id="1_c35m8"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_b0jew"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_c35m8")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_b0jew"]
+size = Vector2(37.75, 11.125)
+
+[node name="CharacterBody2D" type="CharacterBody2D"]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+scale = Vector2(0.03184028, 0.028333336)
+sprite_frames = SubResource("SpriteFrames_b0jew")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_b0jew")

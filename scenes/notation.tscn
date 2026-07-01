@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://dcdsgap12168p"]
+
+[ext_resource type="Texture2D" uid="uid://bgtvkepkskjb7" path="res://assets/Charactor/robot.png" id="1_xdlk0"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_6unbc"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_xdlk0")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Notation" type="AnimatedSprite2D"]
+sprite_frames = SubResource("SpriteFrames_6unbc")

@@ -1,4 +1,38 @@
-# Godot 4+ specific ignores
+# ========== Godot 编辑器生成的缓存目录 ==========
+# 包含编辑器配置、导入缓存、着色器缓存等，每台机器各不相同，不应提交
 .godot/
+
+# ========== 导入文件缓存 ==========
+# .import 目录存放所有资源的导入产物（如 .ctex、.sample 等），体积大且可重新生成
+.import/
+
+# ========== Android 构建产物 ==========
+# 导出 Android 时自动生成的目录，不需要纳入版本控制
 /android/
+
+# ========== IDE / 编辑器配置 ==========
+# VS Code 的工作区设置，每个开发者可能不同
 .vscode/
+
+# Rider / IntelliJ 等 JetBrains IDE 的项目配置
+.idea/
+
+# Visual Studio 的项目配置
+.vs/
+
+# ========== 导出目录 ==========
+# 构建产物不应提交到仓库，按需取消注释你使用的平台
+# build/
+# export/
+# *.pck
+*.zip
+*.exe
+# *.dmg
+# *.apk
+
+# ========== 系统文件 ==========
+# macOS 生成的隐藏文件
+.DS_Store
+
+# Windows 缩略图缓存
+Thumbs.db
