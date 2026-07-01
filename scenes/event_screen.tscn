@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://ej4l4pae563"]
+
+[ext_resource type="Script" path="res://scripts/event_screen.gd" id="1_script"]
+
+[node name="EventScreen" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Camera2D" type="Camera2D" parent="."]

@@ -36,6 +36,7 @@ const TYPE_BOSS: String = "boss"
 # 地图绘制资源
 const EVENT_SCENE: PackedScene = preload("res://scenes/event.tscn")
 const NOTATION_SCENE: PackedScene = preload("res://scenes/notation.tscn")
+const EVENT_SCREEN_SCENE: PackedScene = preload("res://scenes/event_screen.tscn")
 
 # 路线线条样式
 const LINE_COLOR: Color = Color(0.85, 0.85, 0.85, 0.85)
@@ -71,6 +72,12 @@ var map_camera: Camera2D
 # 镜头可移动的横向范围
 var camera_min_x: float = 0.0
 var camera_max_x: float = 0.0
+
+# 当前正在显示的事件界面实例
+var active_event_screen: Node2D = null
+
+# 点击事件节点后暂存的节点 id，等事件界面关闭后再移动 notation
+var pending_node_id: String = ""
 
 
 func _ready() -> void:
@@ -404,13 +411,54 @@ func _update_clickable_events() -> void:
 
 
 func _on_event_pressed(node_id: String) -> void:
-	# 点击合法 event 后，移动 notation，并刷新下一批可点击节点
+	# 点击合法 event 后：event 类型节点跳转事件界面，其余直接移动 notation
 	var current_node_data: Dictionary = node_data_by_id.get(current_node_id, {})
 	var clickable_node_ids: Array = current_node_data.get("connections", [])
 	if not clickable_node_ids.has(node_id):
 		return
 
-	current_node_id = node_id
+	var target_node: Dictionary = node_data_by_id.get(node_id, {})
+	var node_type: String = target_node.get("type", "")
+
+	if node_type == TYPE_EVENT:
+		# 事件类型节点：暂存节点 id，弹出事件界面
+		pending_node_id = node_id
+		_show_event_screen(node_id)
+	else:
+		# 起点或终点类型节点：直接移动 notation
+		current_node_id = node_id
+		_move_notation_to(current_node_id)
+		_update_clickable_events()
+
+
+func _show_event_screen(node_id: String) -> void:
+	# 实例化事件界面并叠加到地图场景上
+	if active_event_screen != null:
+		active_event_screen.queue_free()
+
+	active_event_screen = EVENT_SCREEN_SCENE.instantiate()
+	get_tree().current_scene.add_child(active_event_screen)
+
+	# 监听事件界面关闭信号，回到地图后更新玩家位置
+	active_event_screen.dismissed.connect(_on_event_screen_dismissed)
+
+	# 填入示例事件内容和选项（后续可替换为真实事件数据）
+	var event_screen := active_event_screen as EventScreen
+	if event_screen != null:
+		event_screen.show_event(
+			"你在荒野中发现了一处遗迹，残破的石门上刻着奇怪的符文……",
+			["探索遗迹", "搜索周围", "查看背包", "继续前进"]
+		)
+
+
+func _on_event_screen_dismissed() -> void:
+	# 事件界面关闭后：移动 notation 到之前暂存的节点位置，并刷新可点击状态
+	active_event_screen = null
+
+	if pending_node_id != "":
+		current_node_id = pending_node_id
+		pending_node_id = ""
+
 	_move_notation_to(current_node_id)
 	_update_clickable_events()
 
