@@ -4,40 +4,28 @@ class_name EventScreen
 # ========== 事件界面配置 ==========
 # 底部描述面板高度
 const DESC_PANEL_HEIGHT: float = 160.0
-
 # 描述面板左右边距
 const DESC_PANEL_MARGIN: float = 40.0
-
 # 右侧选项容器宽度
 const OPTION_WIDTH: float = 260.0
-
 # 每个选项的高度
 const OPTION_HEIGHT: float = 50.0
-
 # 选项之间的垂直间距
 const OPTION_SPACING: float = 12.0
-
 # 选项容器距离右边缘的距离
 const OPTION_RIGHT_MARGIN: float = 60.0
-
 # 背景半透明遮罩颜色
 const OVERLAY_COLOR: Color = Color(0.05, 0.05, 0.1, 0.88)
-
 # 描述面板背景色
 const DESC_BG_COLOR: Color = Color(0.1, 0.1, 0.18, 0.92)
-
 # 选项按钮背景色
 const OPTION_BG_COLOR: Color = Color(0.15, 0.15, 0.25, 0.9)
-
 # 选项按钮悬停色
 const OPTION_HOVER_COLOR: Color = Color(0.25, 0.25, 0.4, 0.95)
-
 # 事件界面关闭时发出信号，通知地图更新玩家位置
 signal dismissed
-
 # 事件描述文本标签
 var description_label: RichTextLabel
-
 # 四个选项按钮数组
 var option_buttons: Array[Button] = []
 

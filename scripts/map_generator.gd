@@ -1,81 +1,59 @@
 extends Node2D
 class_name MapGenerator
-
 # ========== 地图生成配置 ==========
 # 地图总层数：这里只生成 6 层，类似《杀戮尖塔》的横向路线地图
 const LAYER_COUNT: int = 7
-
 # 中间层最少和最多生成多少个节点；第一层和最后一层固定只有 1 个节点
 const MIN_NODES_PER_LAYER: int = 2
 const MAX_NODES_PER_LAYER: int = 4
-
 # 节点之间的横向间距；横向表示层与层之间的距离
 const NODE_X_SPACING: float = 160.0
-
 # 同一层节点的固定上下边界；多节点层会在这两个位置之间均匀排布
 const NODE_TOP_Y: float = -135.0
 const NODE_BOTTOM_Y: float = 135.0
 const NODE_CENTER_Y: float = 0.0
-
 # 当某一层恰好只有 2 个节点时，这两个节点围绕中心上下浮动的距离
 const TWO_NODE_OFFSET: float = 65.0
-
 # 如果生成的地图节点数量分布不满足规则，最多允许重新生成的次数
 const MAX_REGENERATION_ATTEMPTS: int = 20
-
 # 镜头横向移动配置
 const CAMERA_MOVE_SPEED: float = 260.0
 const CAMERA_LEFT_PADDING: float = 120.0
 const CAMERA_RIGHT_PADDING: float = 120.0
-
 # 地图节点类型
 const TYPE_START: String = "start"
 const TYPE_EVENT: String = "event"
 const TYPE_BOSS: String = "boss"
-
 # 地图绘制资源
 const EVENT_SCENE: PackedScene = preload("res://scenes/event.tscn")
 const NOTATION_SCENE: PackedScene = preload("res://scenes/notation.tscn")
 const EVENT_SCREEN_SCENE: PackedScene = preload("res://scenes/event_screen.tscn")
-
 # 路线线条样式
 const LINE_COLOR: Color = Color(0.85, 0.85, 0.85, 0.85)
 const LINE_WIDTH: float = 3.0
-
 # 生成完地图后发出信号，外部 UI 可以监听这个信号来绘制地图
 signal map_generated(map_data: Array[Dictionary])
-
 # 随机数工具
 var rng := RandomNumberGenerator.new()
-
 # 当前生成出的地图数据，每个元素代表一层
 var map_data: Array[Dictionary] = []
-
 # 地图节点实例字典：节点 id -> event 场景实例
 var event_nodes: Dictionary = {}
-
 # 地图数据索引字典：节点 id -> 节点数据
 var node_data_by_id: Dictionary = {}
-
 # 当前 notation 所在节点 id
 var current_node_id: String = ""
-
 # event 节点容器
 var event_container: Node2D
-
 # 当前玩家位置标记
 var notation_node: Node2D
-
 # 当前场景中的地图镜头
 var map_camera: Camera2D
-
 # 镜头可移动的横向范围
 var camera_min_x: float = 0.0
 var camera_max_x: float = 0.0
-
 # 当前正在显示的事件界面实例
 var active_event_screen: Node2D = null
-
 # 点击事件节点后暂存的节点 id，等事件界面关闭后再移动 notation
 var pending_node_id: String = ""
 
