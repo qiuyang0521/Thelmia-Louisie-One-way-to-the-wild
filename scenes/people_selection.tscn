@@ -1,5 +1,9 @@
-[gd_scene format=3 uid="uid://bvckm8ijmrq8n"]
+[gd_scene load_steps=2 format=3 uid="uid://bvckm8ijmrq8n"]
+
+[ext_resource type="Script" uid="uid://bmb738es3jjxi" path="res://scripts/people_selection.gd" id="1_script"]
 
 [node name="PeopleSelection" type="Node2D"]
+script = ExtResource("1_script")
 
 [node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(0.5, 0.5)
