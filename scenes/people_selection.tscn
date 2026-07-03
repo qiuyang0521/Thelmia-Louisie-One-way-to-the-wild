@@ -1,3 +1,5 @@
 [gd_scene format=3 uid="uid://bvckm8ijmrq8n"]
 
 [node name="PeopleSelection" type="Node2D"]
+
+[node name="Camera2D" type="Camera2D" parent="."]

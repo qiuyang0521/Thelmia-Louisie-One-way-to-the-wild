@@ -1,3 +1,37 @@
-[gd_scene format=3 uid="uid://nu6i38yrpqkc"]
+[gd_scene load_steps=5 format=3 uid="uid://bp68kt4vmowvt"]
+
+[ext_resource type="StyleBox" uid="uid://dwf35wj3ofo41" path="res://assets/gd/option_background.tres" id="1_caecp"]
+[ext_resource type="Texture2D" uid="uid://bc4mby7h6wwdi" path="res://assets/Charactor/chomper.png" id="1_gv8by"]
+[ext_resource type="Theme" uid="uid://dxhkvd1yxo3ll" path="res://assets/gd/button_sample.tres" id="3_hcb6n"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_mfd1w"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_gv8by")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
 
 [node name="PersonOption" type="Node2D"]
+
+[node name="Panel" type="Panel" parent="."]
+offset_left = -150.0
+offset_top = -225.0
+offset_right = 150.0
+offset_bottom = 225.0
+theme_override_styles/panel = ExtResource("1_caecp")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+scale = Vector2(0.3, 0.3)
+sprite_frames = SubResource("SpriteFrames_mfd1w")
+frame_progress = 0.41013384
+
+[node name="Button" type="Button" parent="."]
+offset_left = -150.0
+offset_top = -225.0
+offset_right = 150.0
+offset_bottom = 225.0
+theme = ExtResource("3_hcb6n")
