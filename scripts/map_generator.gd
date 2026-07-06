@@ -28,6 +28,8 @@ const TYPE_BOSS: String = "boss"
 const EVENT_SCENE: PackedScene = preload("res://scenes/event.tscn")
 const NOTATION_SCENE: PackedScene = preload("res://scenes/notation.tscn")
 const EVENT_SCREEN_SCENE: PackedScene = preload("res://scenes/event_screen.tscn")
+# 暂停界面资源
+const PAUSE_SCREEN_SCENE: PackedScene = preload("res://scenes/pause_screen.tscn")
 # 路线线条样式
 const LINE_COLOR: Color = Color(0.85, 0.85, 0.85, 0.85)
 const LINE_WIDTH: float = 3.0
@@ -83,6 +85,13 @@ func _process(delta: float) -> void:
 
 	map_camera.position.x += horizontal_direction * CAMERA_MOVE_SPEED * delta
 	map_camera.position.x = clampf(map_camera.position.x, camera_min_x, camera_max_x)
+
+
+func _input(event: InputEvent) -> void:
+	# 监听暂停动作（Escape 键），弹出暂停界面
+	if event.is_action_pressed("pause") and not get_tree().paused:
+		var pause_screen := PAUSE_SCREEN_SCENE.instantiate()
+		get_tree().current_scene.add_child(pause_screen)
 
 
 func _draw() -> void:

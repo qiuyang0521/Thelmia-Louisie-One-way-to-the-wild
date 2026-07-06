@@ -1,5 +1,8 @@
 extends CharacterBody2D
 
+# 暂停界面资源
+const PAUSE_SCREEN_SCENE: PackedScene = preload("res://scenes/pause_screen.tscn")
+
 # ========== 车道配置 ==========
 # 三条车道的 Y 坐标（从上到下），可以根据实际道路位置调整
 const LANE_TOP: float = -40.0      # 最上车道 Y 坐标
@@ -51,3 +54,10 @@ func _process(delta: float) -> void:
 	# ---------- 平滑移动到目标车道 ----------
 	# 使用 move_toward 让 Y 坐标平滑过渡到目标值
 	position.y = move_toward(position.y, target_y, LANE_SWITCH_SPEED * delta)
+
+
+func _input(event: InputEvent) -> void:
+	# 监听暂停动作（Escape 键），弹出暂停界面
+	if event.is_action_pressed("pause") and not get_tree().paused:
+		var pause_screen := PAUSE_SCREEN_SCENE.instantiate()
+		get_tree().current_scene.add_child(pause_screen)

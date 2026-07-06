@@ -1,6 +1,9 @@
 extends Node2D
 class_name PeopleSelection
 
+# 引用存档管理器脚本
+const SaveMgr = preload("res://scripts/save_manager.gd")
+
 # ========== 角色资源配置 ==========
 # 头部纹理列表 —— 展示所有可选头部供玩家挑选
 const HEAD_TEXTURES: Array[String] = [
@@ -233,9 +236,10 @@ func _replace_sprite_texture(sprite: AnimatedSprite2D, texture: Texture2D) -> vo
 # ==================== 选择完成 ====================
 
 func _on_selection_complete() -> void:
-	# 选择完成后：可以存储选择结果，然后跳转到游戏主场景
-	# TODO: 后续可将选择结果存入全局单例（Autoload），供游戏内使用
-	
+	# 将角色选择结果存入 SaveManager，供存档和游戏内使用
+	SaveMgr.head_index = selected_head_index
+	SaveMgr.body_index = selected_body_index
+
 	# 简短延迟后切换到主游戏场景，给玩家一个视觉反馈
 	await get_tree().create_timer(0.4).timeout
 	get_tree().change_scene_to_file("res://scenes/map.tscn")
