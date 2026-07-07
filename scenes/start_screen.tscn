@@ -63,3 +63,12 @@ custom_minimum_size = Vector2(300, 50)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "退  出"
+
+[node name="ResetButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 112.0
+offset_bottom = 38.0
+theme_override_font_sizes/font_size = 12
+text = "重置存档"

@@ -1,0 +1,145 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/save_screen.gd" id="1_script"]
+
+[node name="CanvasLayer" type="CanvasLayer"]
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.05, 0.1, 0.82)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -380.0
+offset_top = -250.0
+offset_right = 380.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "存档管理"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 36
+theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
+
+[node name="SlotsContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="Slot1" type="Panel" parent="VBoxContainer/SlotsContainer"]
+custom_minimum_size = Vector2(220, 280)
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/SlotsContainer/Slot1"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="SlotNameLabel" type="Label" parent="VBoxContainer/SlotsContainer/Slot1/VBoxContainer"]
+layout_mode = 2
+text = "存档 1"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+
+[node name="InfoLabel" type="Label" parent="VBoxContainer/SlotsContainer/Slot1/VBoxContainer"]
+layout_mode = 2
+text = "空"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.65, 0.65, 0.7, 1)
+
+[node name="ActionButton" type="Button" parent="VBoxContainer/SlotsContainer/Slot1/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 44)
+text = "保存到此"
+theme_override_font_sizes/font_size = 18
+
+[node name="Slot2" type="Panel" parent="VBoxContainer/SlotsContainer"]
+custom_minimum_size = Vector2(220, 280)
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/SlotsContainer/Slot2"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="SlotNameLabel" type="Label" parent="VBoxContainer/SlotsContainer/Slot2/VBoxContainer"]
+layout_mode = 2
+text = "存档 2"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+
+[node name="InfoLabel" type="Label" parent="VBoxContainer/SlotsContainer/Slot2/VBoxContainer"]
+layout_mode = 2
+text = "空"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.65, 0.65, 0.7, 1)
+
+[node name="ActionButton" type="Button" parent="VBoxContainer/SlotsContainer/Slot2/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 44)
+text = "保存到此"
+theme_override_font_sizes/font_size = 18
+
+[node name="Slot3" type="Panel" parent="VBoxContainer/SlotsContainer"]
+custom_minimum_size = Vector2(220, 280)
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/SlotsContainer/Slot3"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="SlotNameLabel" type="Label" parent="VBoxContainer/SlotsContainer/Slot3/VBoxContainer"]
+layout_mode = 2
+text = "存档 3"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
+
+[node name="InfoLabel" type="Label" parent="VBoxContainer/SlotsContainer/Slot3/VBoxContainer"]
+layout_mode = 2
+text = "空"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.65, 0.65, 0.7, 1)
+
+[node name="ActionButton" type="Button" parent="VBoxContainer/SlotsContainer/Slot3/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(180, 44)
+text = "保存到此"
+theme_override_font_sizes/font_size = 18
+
+[node name="BackButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 48)
+text = "返  回"
+theme_override_font_sizes/font_size = 20

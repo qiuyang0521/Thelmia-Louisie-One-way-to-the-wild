@@ -30,6 +30,8 @@ const NOTATION_SCENE: PackedScene = preload("res://scenes/notation.tscn")
 const EVENT_SCREEN_SCENE: PackedScene = preload("res://scenes/event_screen.tscn")
 # 暂停界面资源
 const PAUSE_SCREEN_SCENE: PackedScene = preload("res://scenes/pause_screen.tscn")
+# 存档管理器引用
+const SaveMgr = preload("res://scripts/save_manager.gd")
 # 路线线条样式
 const LINE_COLOR: Color = Color(0.85, 0.85, 0.85, 0.85)
 const LINE_WIDTH: float = 3.0
@@ -69,8 +71,15 @@ func _ready() -> void:
 	event_container.name = "EventContainer"
 	add_child(event_container)
 
-	# 如果你把这个脚本挂到场景节点上，运行时会自动生成并绘制一次地图
-	generate_map()
+	# 如果有存档的地图种子，用该种子重新生成相同地图；否则随机生成
+	if SaveMgr.map_seed != 0:
+		generate_map(SaveMgr.map_seed)
+	else:
+		generate_map()
+
+	# 保存当前地图种子到全局状态，供后续存档使用
+	SaveMgr.map_seed = rng.seed
+
 	print_map()
 
 
@@ -319,7 +328,11 @@ func _draw_generated_map() -> void:
 		for node in nodes:
 			_create_event_node(node)
 
-	current_node_id = _get_start_node_id()
+	# 如果有存档记录的上次所在节点且节点存在于当前地图，恢复到该位置；否则从起点开始
+	if SaveMgr.current_node_id != "" and node_data_by_id.has(SaveMgr.current_node_id):
+		current_node_id = SaveMgr.current_node_id
+	else:
+		current_node_id = _get_start_node_id()
 	_create_notation_node()
 	_move_notation_to(current_node_id)
 	_update_clickable_events()
@@ -414,6 +427,7 @@ func _on_event_pressed(node_id: String) -> void:
 	else:
 		# 起点或终点类型节点：直接移动 notation
 		current_node_id = node_id
+		SaveMgr.current_node_id = current_node_id
 		_move_notation_to(current_node_id)
 		_update_clickable_events()
 
@@ -445,6 +459,7 @@ func _on_event_screen_dismissed() -> void:
 	if pending_node_id != "":
 		current_node_id = pending_node_id
 		pending_node_id = ""
+		SaveMgr.current_node_id = current_node_id
 
 	_move_notation_to(current_node_id)
 	_update_clickable_events()

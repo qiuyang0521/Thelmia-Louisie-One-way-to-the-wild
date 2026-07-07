@@ -1,52 +1,109 @@
 extends Node
 
-# ========== 存档管理器 —— 全部使用静态方法，通过 preload 引用 ==========
+# ========== 存档管理器 —— 3 槽位存档系统 ==========
+# 每个槽位独立存储：场景路径、角色选择、玩家位置、地图状态、时间戳
 
-# 存档文件在用户目录下的固定路径
-const SAVE_PATH: String = "user://savegame.cfg"
+const SAVE_SLOT_COUNT: int = 3
+const SAVE_BASE_PATH: String = "user://save_"
 
 # 内存中暂存当前角色选择结果，供存档时写入
 static var head_index: int = -1
 static var body_index: int = -1
 
+# 临时暂存：调用方在保存前需填充这些字段
+static var pending_scene: String = ""
+static var pending_position: Vector2 = Vector2.ZERO
+
+# 地图状态：当前所在节点 id 与随机种子（供读档恢复地图）
+static var current_node_id: String = ""
+static var map_seed: int = 0
+
+
+# ==================== 工具方法 ====================
+
+static func _slot_path(slot: int) -> String:
+	return SAVE_BASE_PATH + str(slot) + ".cfg"
+
 
 # ==================== 存档操作 ====================
 
-static func save_game(current_scene: String = "") -> void:
-	# 将当前游戏进度写入存档文件
+static func save_to_slot(slot: int) -> void:
+	# 将 pending_* 暂存数据写入指定槽位
+	if slot < 0 or slot >= SAVE_SLOT_COUNT:
+		return
+
 	var config := ConfigFile.new()
-	config.set_value("game", "current_scene", current_scene)
+	config.set_value("game", "current_scene", pending_scene)
+	config.set_value("game", "position_x", pending_position.x)
+	config.set_value("game", "position_y", pending_position.y)
 	config.set_value("character", "head_index", head_index)
 	config.set_value("character", "body_index", body_index)
+	config.set_value("map", "current_node_id", current_node_id)
+	config.set_value("map", "seed", map_seed)
 	config.set_value("meta", "timestamp", Time.get_datetime_string_from_system())
-	config.save(SAVE_PATH)
-	print("[SaveManager] 存档已保存 → 场景: %s, 头: %d, 身体: %d" % [current_scene, head_index, body_index])
+	config.save(_slot_path(slot))
+
+	print("[SaveManager] 存档 %d 已保存" % slot)
 
 
-static func load_game() -> Dictionary:
-	# 从存档文件读取游戏进度，返回包含各字段的字典
-	# 如果读不到文件则返回空字典
+static func load_from_slot(slot: int) -> Dictionary:
+	# 从指定槽位读取完整存档数据，无存档则返回空字典
 	var config := ConfigFile.new()
-	var err := config.load(SAVE_PATH)
-	if err != OK:
-		print("[SaveManager] 未找到存档文件")
+	if config.load(_slot_path(slot)) != OK:
 		return {}
 
 	return {
 		"current_scene": config.get_value("game", "current_scene", ""),
+		"position_x": config.get_value("game", "position_x", 0.0),
+		"position_y": config.get_value("game", "position_y", 0.0),
 		"head_index": config.get_value("character", "head_index", -1),
 		"body_index": config.get_value("character", "body_index", -1),
+		"current_node_id": config.get_value("map", "current_node_id", ""),
+		"map_seed": config.get_value("map", "seed", 0),
 		"timestamp": config.get_value("meta", "timestamp", "")
 	}
 
 
-static func has_save() -> bool:
-	# 检查是否存在存档文件
-	return FileAccess.file_exists(SAVE_PATH)
+static func slot_has_save(slot: int) -> bool:
+	# 检查指定槽位是否有存档
+	return FileAccess.file_exists(_slot_path(slot))
 
 
-static func delete_save() -> void:
-	# 删除存档文件（可用于"新游戏"覆盖旧存档）
-	if FileAccess.file_exists(SAVE_PATH):
-		DirAccess.remove_absolute(SAVE_PATH)
-		print("[SaveManager] 存档已删除")
+static func get_slot_info(slot: int) -> Dictionary:
+	# 返回槽位摘要信息（用于 UI 展示），无存档则返回空字典
+	var config := ConfigFile.new()
+	if config.load(_slot_path(slot)) != OK:
+		return {}
+
+	return {
+		"timestamp": config.get_value("meta", "timestamp", ""),
+		"head_index": config.get_value("character", "head_index", -1),
+		"body_index": config.get_value("character", "body_index", -1),
+		"current_scene": config.get_value("game", "current_scene", "")
+	}
+
+
+static func has_any_save() -> bool:
+	# 检查是否有任意槽位存有数据（用于开始界面判断）
+	for i in range(SAVE_SLOT_COUNT):
+		if FileAccess.file_exists(_slot_path(i)):
+			return true
+	return false
+
+
+static func delete_all_saves() -> void:
+	# 重置所有存档进度：删除全部槽位文件并清空角色选择
+	for i in range(SAVE_SLOT_COUNT):
+		var path := _slot_path(i)
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
+
+	# 重置变量
+	head_index = -1
+	body_index = -1
+	pending_scene = ""
+	pending_position = Vector2.ZERO
+	current_node_id = ""
+	map_seed = 0
+
+	print("[SaveManager] 所有存档已清除")
