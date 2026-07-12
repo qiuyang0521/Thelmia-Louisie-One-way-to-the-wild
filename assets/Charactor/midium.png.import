@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1sxdalc8ubhd"
-path="res://.godot/imported/event.png-57cdec2e6849e75eb88442f808816160.ctex"
+uid="uid://isyu43anh7a4"
+path="res://.godot/imported/midium.png-6ca9d4ef39493180a460da79feffa3a7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/Charactor/event.png"
-dest_files=["res://.godot/imported/event.png-57cdec2e6849e75eb88442f808816160.ctex"]
+source_file="res://assets/Charactor/midium.png"
+dest_files=["res://.godot/imported/midium.png-6ca9d4ef39493180a460da79feffa3a7.ctex"]
 
 [params]
 

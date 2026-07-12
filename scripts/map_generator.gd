@@ -22,7 +22,9 @@ const CAMERA_LEFT_PADDING: float = 120.0
 const CAMERA_RIGHT_PADDING: float = 120.0
 # 地图节点类型
 const TYPE_START: String = "start"
-const TYPE_EVENT: String = "event"
+const TYPE_SMALL_EVENT: String = "small"
+const TYPE_MEDIUM_EVENT: String = "medium"
+const TYPE_BIG_EVENT: String = "big"
 const TYPE_BOSS: String = "boss"
 # 地图绘制资源
 const EVENT_SCENE: PackedScene = preload("res://scenes/event.tscn")
@@ -169,7 +171,7 @@ func _create_layer(layer_index: int, node_count: int) -> void:
 			"id": node_id,
 			"layer": layer_index,
 			"index": node_index,
-			"type": TYPE_EVENT,
+			"type": TYPE_SMALL,
 			"position": Vector2(x, y),
 			"connections": []
 		}
@@ -294,7 +296,7 @@ func _assign_node_types() -> void:
 			elif layer_index == LAYER_COUNT - 1:
 				node["type"] = TYPE_BOSS
 			else:
-				node["type"] = TYPE_EVENT
+				node["type"] = TYPE_SMALL
 
 
 func _build_node_data_index() -> void:
@@ -420,7 +422,7 @@ func _on_event_pressed(node_id: String) -> void:
 	var target_node: Dictionary = node_data_by_id.get(node_id, {})
 	var node_type: String = target_node.get("type", "")
 
-	if node_type == TYPE_EVENT:
+	if node_type == TYPE_SMALL:
 		# 事件类型节点：暂存节点 id，弹出事件界面
 		pending_node_id = node_id
 		_show_event_screen(node_id)
