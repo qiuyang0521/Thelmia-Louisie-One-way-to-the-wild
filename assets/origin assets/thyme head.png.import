@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ow4naupjbgc0"
-path="res://.godot/imported/百里香头.png-247daa1660538be5ce052810a8cf8fb8.ctex"
+uid="uid://b63c08j315q8r"
+path="res://.godot/imported/thyme head.png-10f068bf796d086add4b23a27bb351af.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/百里香头.png"
-dest_files=["res://.godot/imported/百里香头.png-247daa1660538be5ce052810a8cf8fb8.ctex"]
+source_file="res://assets/thyme head.png"
+dest_files=["res://.godot/imported/thyme head.png-10f068bf796d086add4b23a27bb351af.ctex"]
 
 [params]
 

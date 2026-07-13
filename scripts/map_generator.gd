@@ -26,6 +26,10 @@ const TYPE_SMALL_EVENT: String = "small"
 const TYPE_MEDIUM_EVENT: String = "medium"
 const TYPE_BIG_EVENT: String = "big"
 const TYPE_BOSS: String = "boss"
+# 各类型对应的地图节点纹理
+const TEX_SMALL: Texture2D = preload("res://assets/Charactor/small.png")
+const TEX_MEDIUM: Texture2D = preload("res://assets/Charactor/midium.png")
+const TEX_BIG: Texture2D = preload("res://assets/Charactor/big.png")
 # 地图绘制资源
 const EVENT_SCENE: PackedScene = preload("res://scenes/event.tscn")
 const NOTATION_SCENE: PackedScene = preload("res://scenes/notation.tscn")
@@ -140,7 +144,7 @@ func generate_map(seed_value: int = 0) -> Array[Dictionary]:
 
 
 func _create_layers_with_validation() -> void:
-	# 先随机每层节点数量，如果不符合‘不允许连续两层都是 2 个或都是 4 个’的规则，就整体重新生成
+	# 先随机每层节点数量，然后校验通过再生成；不通过则整体重试
 	var layer_node_counts: Array[int] = []
 	var attempts: int = 0
 
@@ -171,7 +175,7 @@ func _create_layer(layer_index: int, node_count: int) -> void:
 			"id": node_id,
 			"layer": layer_index,
 			"index": node_index,
-			"type": TYPE_SMALL,
+			"type": TYPE_SMALL_EVENT,
 			"position": Vector2(x, y),
 			"connections": []
 		}
@@ -184,15 +188,21 @@ func _create_layer(layer_index: int, node_count: int) -> void:
 
 
 func _has_valid_node_count_distribution(layer_node_counts: Array[int]) -> bool:
-	# 只检查中间层；如果出现连续两层都是 2 个或都是 4 个节点，或者连续三层都是 3 个节点，就视为无效分布
+	# 规则 1：整个地图最多允许一层有 4 个节点
+	var four_node_layer_count: int = 0
+	for count in layer_node_counts:
+		if count == 4:
+			four_node_layer_count += 1
+			if four_node_layer_count >= 2:
+				return false
+
+	# 规则 2：不允许连续两层都是 2 个节点
+	# 规则 3：不允许连续三层都是 3 个节点
 	for layer_index in range(1, layer_node_counts.size() - 1):
 		var current_count: int = layer_node_counts[layer_index]
 		var previous_count: int = layer_node_counts[layer_index - 1]
 
 		if current_count == 2 and previous_count == 2:
-			return false
-
-		if current_count == 4 and previous_count == 4:
 			return false
 
 		if (
@@ -296,7 +306,7 @@ func _assign_node_types() -> void:
 			elif layer_index == LAYER_COUNT - 1:
 				node["type"] = TYPE_BOSS
 			else:
-				node["type"] = TYPE_SMALL
+				node["type"] = TYPE_SMALL_EVENT
 
 
 func _build_node_data_index() -> void:
@@ -356,14 +366,23 @@ func _clear_drawn_map() -> void:
 func _create_event_node(node_data: Dictionary) -> void:
 	# 实例化一个 event 场景，并把它放到对应地图节点的位置
 	var node_id: String = node_data["id"]
+	var node_type: String = node_data.get("type", "")
 	var event_node := EVENT_SCENE.instantiate() as Node2D
 	event_node.name = "Event_%s" % node_id
 	event_node.position = node_data["position"]
 	event_container.add_child(event_node)
 	event_nodes[node_id] = event_node
 
+	# 根据节点类型替换对应纹理
 	if event_node is AnimatedSprite2D:
-		(event_node as AnimatedSprite2D).play()
+		var sprite := event_node as AnimatedSprite2D
+		var tex := _get_texture_for_type(node_type)
+		var frames := SpriteFrames.new()
+		frames.add_frame("default", tex)
+		frames.set_animation_loop("default", true)
+		frames.set_animation_speed("default", 5.0)
+		sprite.sprite_frames = frames
+		sprite.play()
 
 	var button: Button = event_node.get_node_or_null("Button") as Button
 	if button != null:
@@ -422,7 +441,7 @@ func _on_event_pressed(node_id: String) -> void:
 	var target_node: Dictionary = node_data_by_id.get(node_id, {})
 	var node_type: String = target_node.get("type", "")
 
-	if node_type == TYPE_SMALL:
+	if node_type == TYPE_SMALL_EVENT:
 		# 事件类型节点：暂存节点 id，弹出事件界面
 		pending_node_id = node_id
 		_show_event_screen(node_id)
@@ -477,6 +496,19 @@ func _get_start_node_id() -> String:
 		return ""
 
 	return first_layer_nodes[0]["id"]
+
+
+func _get_texture_for_type(node_type: String) -> Texture2D:
+	# 根据节点类型返回对应的纹理资源
+	match node_type:
+		TYPE_SMALL_EVENT:
+			return TEX_SMALL
+		TYPE_MEDIUM_EVENT:
+			return TEX_MEDIUM
+		TYPE_BIG_EVENT:
+			return TEX_BIG
+		_:
+			return TEX_SMALL
 
 
 func print_map() -> void:
