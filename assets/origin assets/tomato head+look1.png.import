@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d0dmtvb681831"
-path="res://.godot/imported/tomato head+look1.png-7428e8ddd6b4cd311c0c07621de1424d.ctex"
+path="res://.godot/imported/tomato head+look1.png-4fb55d0d1bb7edc4436dc621409fa233.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/tomato head+look1.png"
-dest_files=["res://.godot/imported/tomato head+look1.png-7428e8ddd6b4cd311c0c07621de1424d.ctex"]
+source_file="res://assets/origin assets/tomato head+look1.png"
+dest_files=["res://.godot/imported/tomato head+look1.png-4fb55d0d1bb7edc4436dc621409fa233.ctex"]
 
 [params]
 

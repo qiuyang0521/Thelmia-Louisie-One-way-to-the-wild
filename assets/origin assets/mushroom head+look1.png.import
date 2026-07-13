@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dmjphj0d8b07a"
-path="res://.godot/imported/mushroom head+look1.png-616738a1a5fa4245b4076863ab864823.ctex"
+path="res://.godot/imported/mushroom head+look1.png-d54d004c230ed0838951dbc1479226ce.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/mushroom head+look1.png"
-dest_files=["res://.godot/imported/mushroom head+look1.png-616738a1a5fa4245b4076863ab864823.ctex"]
+source_file="res://assets/origin assets/mushroom head+look1.png"
+dest_files=["res://.godot/imported/mushroom head+look1.png-d54d004c230ed0838951dbc1479226ce.ctex"]
 
 [params]
 

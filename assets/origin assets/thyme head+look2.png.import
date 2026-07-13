@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dxafx2yd036yr"
-path="res://.godot/imported/thyme head+look2.png-0302544f9d298a64fac48a55bb2008d1.ctex"
+path="res://.godot/imported/thyme head+look2.png-c7fc9be5e4ee0391613a564198955ac2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/thyme head+look2.png"
-dest_files=["res://.godot/imported/thyme head+look2.png-0302544f9d298a64fac48a55bb2008d1.ctex"]
+source_file="res://assets/origin assets/thyme head+look2.png"
+dest_files=["res://.godot/imported/thyme head+look2.png-c7fc9be5e4ee0391613a564198955ac2.ctex"]
 
 [params]
 

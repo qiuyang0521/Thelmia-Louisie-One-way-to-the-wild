@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bkhlf2hos0byo"
-path="res://.godot/imported/cactus head+look1.png-cc6c53629f7562ef2ec75e803c87f1c9.ctex"
+path="res://.godot/imported/cactus head+look1.png-32e7b57270853a29551d267c5b50e35b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/cactus head+look1.png"
-dest_files=["res://.godot/imported/cactus head+look1.png-cc6c53629f7562ef2ec75e803c87f1c9.ctex"]
+source_file="res://assets/origin assets/cactus head+look1.png"
+dest_files=["res://.godot/imported/cactus head+look1.png-32e7b57270853a29551d267c5b50e35b.ctex"]
 
 [params]
 
