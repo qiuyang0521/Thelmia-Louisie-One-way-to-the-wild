@@ -48,7 +48,8 @@ func _on_save_pressed() -> void:
 
 
 func _on_quit_pressed() -> void:
-	# 返回标题画面：先取消暂停，再切换场景
+	# 返回标题画面：重置运行时状态，取消暂停，切换场景
+	SaveMgr.reset_state()
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/start_screen.tscn")
 

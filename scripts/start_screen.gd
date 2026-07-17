@@ -23,7 +23,8 @@ func _ready() -> void:
 
 
 func _on_new_game_pressed() -> void:
-	# 开始新游戏：跳转到人物选择场景
+	# 开始新游戏：重置运行时状态，跳转到人物选择场景
+	SaveMgr.reset_state()
 	get_tree().change_scene_to_file("res://scenes/people_selection.tscn")
 
 

@@ -91,6 +91,17 @@ static func has_any_save() -> bool:
 	return false
 
 
+static func reset_state() -> void:
+	# 重置所有运行时状态（开始新游戏时调用），不删除存档文件
+	head_index = -1
+	body_index = -1
+	pending_scene = ""
+	pending_position = Vector2.ZERO
+	current_node_id = ""
+	map_seed = 0
+	print("[SaveManager] 运行时状态已重置")
+
+
 static func delete_all_saves() -> void:
 	# 重置所有存档进度：删除全部槽位文件并清空角色选择
 	for i in range(SAVE_SLOT_COUNT):

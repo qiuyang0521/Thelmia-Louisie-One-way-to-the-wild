@@ -295,18 +295,62 @@ func _add_connection(from_node: Dictionary, to_node_id: String) -> void:
 
 
 func _assign_node_types() -> void:
-	# 给节点分配房间类型：起点固定 start，终点固定 boss，中间层全部固定为 event
+	# 分配房间类型：起点固定 TYPE_START，终点固定 TYPE_BOSS
+	# 倒数第2~4层（Layer LAYER_COUNT-4 到 LAYER_COUNT-2）必定生成大型房间
+	# 大型房间层不会生成 4 个节点，且整个地图最多存在一层大型房间
+	# 每层中各节点的房间类型可以不同：其余节点随机为小型或中型，中型房间前后不能连接中型
+
+	# Step 1: 确定大型房间层（必须从候选范围选一层，优先选节点数 < 4 的层）
+	const BIG_EVENT_MIN_LAYER: int = LAYER_COUNT - 4
+	const BIG_EVENT_MAX_LAYER: int = LAYER_COUNT - 2
+
+	var big_candidates: Array[int] = []
+	for layer_index in range(BIG_EVENT_MIN_LAYER, BIG_EVENT_MAX_LAYER + 1):
+		var nodes: Array = map_data[layer_index]["nodes"]
+		if nodes.size() < 4:  # 大型房间层不生成 4 个节点
+			big_candidates.append(layer_index)
+
+	# 必定生成大型房间：有候选时随机选一个，否则从合法范围内强制选一个
+	var big_layer: int
+	if not big_candidates.is_empty():
+		big_layer = big_candidates[rng.randi() % big_candidates.size()]
+	else:
+		big_layer = rng.randi_range(BIG_EVENT_MIN_LAYER, BIG_EVENT_MAX_LAYER)
+
+	# Step 2: 为每层每个节点独立分配类型
 	for layer_data in map_data:
 		var layer_index: int = layer_data["layer"]
 		var nodes: Array = layer_data["nodes"]
 
-		for node in nodes:
-			if layer_index == 0:
+		if layer_index == 0:
+			for node in nodes:
 				node["type"] = TYPE_START
-			elif layer_index == LAYER_COUNT - 1:
+		elif layer_index == LAYER_COUNT - 1:
+			for node in nodes:
 				node["type"] = TYPE_BOSS
-			else:
-				node["type"] = TYPE_SMALL_EVENT
+		elif layer_index == big_layer:
+			for node in nodes:
+				node["type"] = TYPE_BIG_EVENT
+		else:
+			# 其余层：每个节点独立随机为小型或中型
+			# 中型房间前后不能连接中型（硬约束：有邻接中型则禁止）
+			for node in nodes:
+				var can_be_medium := not _has_medium_incoming(layer_index, node)
+				if can_be_medium and rng.randi() % 2 == 0:
+					node["type"] = TYPE_MEDIUM_EVENT
+				else:
+					node["type"] = TYPE_SMALL_EVENT
+
+
+func _has_medium_incoming(layer_index: int, node: Dictionary) -> bool:
+	# 检查前一层是否有 MEDIUM 节点通过路线连接到当前节点
+	var prev_layer_data: Dictionary = map_data[layer_index - 1]
+	var prev_nodes: Array = prev_layer_data["nodes"]
+	for prev_node in prev_nodes:
+		var prev_connections: Array = prev_node["connections"]
+		if prev_connections.has(node["id"]) and prev_node["type"] == TYPE_MEDIUM_EVENT:
+			return true
+	return false
 
 
 func _build_node_data_index() -> void:
@@ -441,8 +485,10 @@ func _on_event_pressed(node_id: String) -> void:
 	var target_node: Dictionary = node_data_by_id.get(node_id, {})
 	var node_type: String = target_node.get("type", "")
 
-	if node_type == TYPE_SMALL_EVENT:
-		# 事件类型节点：暂存节点 id，弹出事件界面
+	var is_event_node := node_type == TYPE_SMALL_EVENT or node_type == TYPE_MEDIUM_EVENT or node_type == TYPE_BIG_EVENT
+
+	if is_event_node:
+		# 事件类型节点（小型/中型/大型房间）：暂存节点 id，弹出事件界面
 		pending_node_id = node_id
 		_show_event_screen(node_id)
 	else:
