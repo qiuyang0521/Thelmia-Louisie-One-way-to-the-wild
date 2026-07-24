@@ -1,9 +1,6 @@
 extends Node2D
 class_name PeopleSelection
 
-# 引用存档管理器脚本
-const SaveMgr = preload("res://scripts/save_manager.gd")
-
 # ========== 角色资源配置 ==========
 # 头部纹理列表 —— 展示所有可选头部供玩家挑选
 const HEAD_TEXTURES: Array[String] = [

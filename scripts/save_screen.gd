@@ -1,9 +1,6 @@
 extends CanvasLayer
 class_name SaveScreen
 
-# 引用存档管理器脚本
-const SaveMgr = preload("res://scripts/save_manager.gd")
-
 # 操作模式：保存 / 读取
 enum Mode { SAVE, LOAD }
 

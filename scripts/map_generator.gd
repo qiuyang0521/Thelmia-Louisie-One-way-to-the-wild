@@ -36,8 +36,6 @@ const NOTATION_SCENE: PackedScene = preload("res://scenes/notation.tscn")
 const EVENT_SCREEN_SCENE: PackedScene = preload("res://scenes/event_screen.tscn")
 # 暂停界面资源
 const PAUSE_SCREEN_SCENE: PackedScene = preload("res://scenes/pause_screen.tscn")
-# 存档管理器引用
-const SaveMgr = preload("res://scripts/save_manager.gd")
 # 路线线条样式
 const LINE_COLOR: Color = Color(0.85, 0.85, 0.85, 0.85)
 const LINE_WIDTH: float = 3.0

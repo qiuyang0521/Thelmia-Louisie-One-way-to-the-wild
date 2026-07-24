@@ -1,8 +1,6 @@
 extends CanvasLayer
 class_name PauseScreen
 
-# 引用存档管理器脚本
-const SaveMgr = preload("res://scripts/save_manager.gd")
 # 存档管理界面场景与脚本
 const SAVE_SCREEN_SCENE: PackedScene = preload("res://scenes/save_screen.tscn")
 const SaveUI = preload("res://scripts/save_screen.gd")
