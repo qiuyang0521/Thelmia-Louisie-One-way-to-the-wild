@@ -299,7 +299,7 @@ func _assign_node_types() -> void:
 	# 每层中各节点的房间类型可以不同：其余节点随机为小型或中型，中型房间前后不能连接中型
 
 	# Step 1: 确定大型房间层（必须从候选范围选一层，优先选节点数 < 4 的层）
-	const BIG_EVENT_MIN_LAYER: int = LAYER_COUNT - 4
+	const BIG_EVENT_MIN_LAYER: int = LAYER_COUNT - 3
 	const BIG_EVENT_MAX_LAYER: int = LAYER_COUNT - 2
 
 	var big_candidates: Array[int] = []
