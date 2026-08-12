@@ -28,7 +28,7 @@ func _on_new_game_pressed() -> void:
 
 func _on_load_pressed() -> void:
 	# 打开存档管理界面（读取模式），让玩家选择要读取的槽位
-	var save_screen := SAVE_SCREEN_SCENE.instantiate()
+	var save_screen := SAVE_SCREEN_SCENE.instantiate() as SaveScreen
 	save_screen.mode = SaveUI.Mode.LOAD
 	add_child(save_screen)
 

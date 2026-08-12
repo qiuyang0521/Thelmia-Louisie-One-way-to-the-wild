@@ -59,5 +59,5 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	# 监听暂停动作（Escape 键），弹出暂停界面
 	if event.is_action_pressed("pause") and not get_tree().paused:
-		var pause_screen := PAUSE_SCREEN_SCENE.instantiate()
+		var pause_screen := PAUSE_SCREEN_SCENE.instantiate() as CanvasLayer
 		get_tree().current_scene.add_child(pause_screen)

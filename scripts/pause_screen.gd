@@ -40,7 +40,7 @@ func _on_save_pressed() -> void:
 	SaveMgr.pending_position = _get_player_position()
 
 	# 打开存档管理界面（保存模式）
-	var save_screen := SAVE_SCREEN_SCENE.instantiate()
+	var save_screen := SAVE_SCREEN_SCENE.instantiate() as SaveScreen
 	save_screen.mode = SaveUI.Mode.SAVE
 	get_tree().current_scene.add_child(save_screen)
 

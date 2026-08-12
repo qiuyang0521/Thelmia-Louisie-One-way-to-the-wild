@@ -1,25 +1,14 @@
 extends Node2D
 class_name MapGenerator
-# ========== 地图生成配置 ==========
-# 地图总层数：这里只生成 6 层，类似《杀戮尖塔》的横向路线地图
+# ========== 地图配置（固定布局，从上向下排列） ==========
+# 地图总层数（7 层纵向排列，起点在顶部，Boss 在底部）
 const LAYER_COUNT: int = 7
-# 中间层最少和最多生成多少个节点；第一层和最后一层固定只有 1 个节点
-const MIN_NODES_PER_LAYER: int = 2
-const MAX_NODES_PER_LAYER: int = 4
-# 节点之间的横向间距；横向表示层与层之间的距离
-const NODE_X_SPACING: float = 160.0
-# 同一层节点的固定上下边界；多节点层会在这两个位置之间均匀排布
-const NODE_TOP_Y: float = -135.0
-const NODE_BOTTOM_Y: float = 135.0
-const NODE_CENTER_Y: float = 0.0
-# 当某一层恰好只有 2 个节点时，这两个节点围绕中心上下浮动的距离
-const TWO_NODE_OFFSET: float = 65.0
-# 如果生成的地图节点数量分布不满足规则，最多允许重新生成的次数
-const MAX_REGENERATION_ATTEMPTS: int = 20
-# 镜头横向移动配置
+# 层与层之间的纵向间距
+const NODE_Y_SPACING: float = 160.0
+# 镜头纵向移动配置
 const CAMERA_MOVE_SPEED: float = 260.0
-const CAMERA_LEFT_PADDING: float = 120.0
-const CAMERA_RIGHT_PADDING: float = 120.0
+const CAMERA_TOP_PADDING: float = 120.0
+const CAMERA_BOTTOM_PADDING: float = 120.0
 # 地图节点类型
 const TYPE_START: String = "start"
 const TYPE_SMALL_EVENT: String = "small"
@@ -41,9 +30,7 @@ const LINE_COLOR: Color = Color(0.85, 0.85, 0.85, 0.85)
 const LINE_WIDTH: float = 3.0
 # 生成完地图后发出信号，外部 UI 可以监听这个信号来绘制地图
 signal map_generated(map_data: Array[Dictionary])
-# 随机数工具
-var rng := RandomNumberGenerator.new()
-# 当前生成出的地图数据，每个元素代表一层
+# 当前地图数据，每个元素代表一层
 var map_data: Array[Dictionary] = []
 # 地图节点实例字典：节点 id -> event 场景实例
 var event_nodes: Dictionary = {}
@@ -57,9 +44,9 @@ var event_container: Node2D
 var notation_node: Node2D
 # 当前场景中的地图镜头
 var map_camera: Camera2D
-# 镜头可移动的横向范围
-var camera_min_x: float = 0.0
-var camera_max_x: float = 0.0
+# 镜头可移动的纵向范围
+var camera_min_y: float = 0.0
+var camera_max_y: float = 0.0
 # 当前正在显示的事件界面实例
 var active_event_screen: Node2D = null
 # 点击事件节点后暂存的节点 id，等事件界面关闭后再移动 notation
@@ -75,14 +62,8 @@ func _ready() -> void:
 	event_container.name = "EventContainer"
 	add_child(event_container)
 
-	# 如果有存档的地图种子，用该种子重新生成相同地图；否则随机生成
-	if SaveMgr.map_seed != 0:
-		generate_map(SaveMgr.map_seed)
-	else:
-		generate_map()
-
-	# 保存当前地图种子到全局状态，供后续存档使用
-	SaveMgr.map_seed = rng.seed
+	# 固定地图直接生成，不再依赖随机种子
+	generate_map()
 
 	print_map()
 
@@ -91,264 +72,118 @@ func _process(delta: float) -> void:
 	if map_camera == null:
 		return
 
-	# 使用项目已有的 left/right 输入动作控制镜头横向移动
-	var horizontal_direction := Input.get_axis("left", "right")
-	if horizontal_direction == 0.0:
+	# 使用项目已有的 up/down 输入动作控制镜头纵向移动
+	var vertical_direction := Input.get_axis("up", "down")
+	if vertical_direction == 0.0:
 		return
 
-	map_camera.position.x += horizontal_direction * CAMERA_MOVE_SPEED * delta
-	map_camera.position.x = clampf(map_camera.position.x, camera_min_x, camera_max_x)
+	map_camera.position.y += vertical_direction * CAMERA_MOVE_SPEED * delta
+	map_camera.position.y = clampf(map_camera.position.y, camera_min_y, camera_max_y)
 
 
 func _input(event: InputEvent) -> void:
 	# 监听暂停动作（Escape 键），弹出暂停界面
 	if event.is_action_pressed("pause") and not get_tree().paused:
-		var pause_screen := PAUSE_SCREEN_SCENE.instantiate()
+		var pause_screen := PAUSE_SCREEN_SCENE.instantiate() as CanvasLayer
 		get_tree().current_scene.add_child(pause_screen)
 
 
 func _draw() -> void:
-	# 绘制所有节点之间的路线；因为是父节点绘制，所以线会显示在 event 节点后方
-	for layer_data in map_data:
-		var nodes: Array = layer_data["nodes"]
-		for node in nodes:
-			var from_position: Vector2 = node["position"]
-			var connections: Array = node["connections"]
+	# 仅绘制当前节点连接到相邻节点的路线（而非全局所有路线）
+	if current_node_id == "":
+		return
 
-			for target_node_id in connections:
-				var target_node: Dictionary = node_data_by_id.get(target_node_id, {})
-				if target_node.has("position"):
-					draw_line(from_position, target_node["position"], LINE_COLOR, LINE_WIDTH)
+	var current_node_data: Dictionary = node_data_by_id.get(current_node_id, {})
+	if current_node_data.is_empty():
+		return
+
+	var from_position: Vector2 = current_node_data["position"]
+	var connections: Array = current_node_data["connections"]
+
+	for target_node_id in connections:
+		var target_node: Dictionary = node_data_by_id.get(target_node_id, {})
+		if target_node.has("position"):
+			draw_line(from_position, target_node["position"], LINE_COLOR, LINE_WIDTH)
 
 
-func generate_map(seed_value: int = 0) -> Array[Dictionary]:
-	# 传入 0 表示每次随机；传入固定数字可以得到固定地图，方便调试
-	if seed_value == 0:
-		rng.randomize()
-	else:
-		rng.seed = seed_value
-
+func generate_map() -> void:
+	# 使用固定地图布局，不再随机生成
 	map_data.clear()
-	_create_layers_with_validation()
-	_create_paths()
-	_ensure_all_nodes_connected()
-	_assign_node_types()
+	_build_fixed_map()
 	_build_node_data_index()
 	_update_camera_limits()
 	_draw_generated_map()
 
 	map_generated.emit(map_data)
-	return map_data
 
 
-func _create_layers_with_validation() -> void:
-	# 先随机每层节点数量，然后校验通过再生成；不通过则整体重试
-	var layer_node_counts: Array[int] = []
-	var attempts: int = 0
+func _build_fixed_map() -> void:
+	# 构建固定地图数据 —— 7 层纵向排列（从上向下），节点位置、类型和连接关系全部硬编码
+	# 每层定义：[节点数量, [各节点 X 坐标], [各节点类型]]
+	var layer_defs: Array = [
+		{"count": 1, "xs": [0.0],             "types": [TYPE_START]},
+		{"count": 3, "xs": [-135.0, 0.0, 135.0], "types": [TYPE_SMALL_EVENT, TYPE_MEDIUM_EVENT, TYPE_SMALL_EVENT]},
+		{"count": 2, "xs": [-65.0, 65.0],      "types": [TYPE_SMALL_EVENT, TYPE_MEDIUM_EVENT]},
+		{"count": 3, "xs": [-135.0, 0.0, 135.0], "types": [TYPE_BIG_EVENT, TYPE_BIG_EVENT, TYPE_BIG_EVENT]},
+		{"count": 3, "xs": [-135.0, 0.0, 135.0], "types": [TYPE_SMALL_EVENT, TYPE_MEDIUM_EVENT, TYPE_SMALL_EVENT]},
+		{"count": 2, "xs": [-65.0, 65.0],      "types": [TYPE_SMALL_EVENT, TYPE_MEDIUM_EVENT]},
+		{"count": 1, "xs": [0.0],             "types": [TYPE_BOSS]},
+	]
 
-	while attempts < MAX_REGENERATION_ATTEMPTS:
-		attempts += 1
-		layer_node_counts.clear()
+	for layer_index in range(layer_defs.size()):
+		var def: Dictionary = layer_defs[layer_index]
+		var nodes: Array[Dictionary] = []
 
-		for layer_index in range(LAYER_COUNT):
-			layer_node_counts.append(_get_node_count_for_layer(layer_index))
+		for node_index in range(def["count"]):
+			var node_id := "%s_%s" % [layer_index, node_index]
+			var node := {
+				"id": node_id,
+				"layer": layer_index,
+				"index": node_index,
+				"type": def["types"][node_index],
+				"position": Vector2(def["xs"][node_index], layer_index * NODE_Y_SPACING),
+				"connections": []
+			}
+			nodes.append(node)
 
-		if _has_valid_node_count_distribution(layer_node_counts):
-			break
+		map_data.append({"layer": layer_index, "nodes": nodes})
 
-	for layer_index in range(LAYER_COUNT):
-		_create_layer(layer_index, layer_node_counts[layer_index])
+	# 连接关系：[从层索引][从节点索引] = [目标节点索引数组]
+	# 所有连接采用非交叉原则，每节点至少有一个入口和一个出口
+	var connections: Array[Array] = [
+		[[0, 1, 2]],              # Layer 0→1: 起点连接全部三个
+		[[0], [0, 1], [1]],       # Layer 1→2
+		[[0, 1], [1, 2]],         # Layer 2→3
+		[[0, 1], [1], [1, 2]],   # Layer 3→4
+		[[0], [0, 1], [1]],       # Layer 4→5
+		[[0], [0]],               # Layer 5→6: 两条路线汇聚到 Boss
+	]
 
+	for layer_from in range(connections.size()):
+		var from_nodes: Array = map_data[layer_from]["nodes"]
+		var to_nodes: Array = map_data[layer_from + 1]["nodes"]
+		var layer_conns: Array = connections[layer_from]
 
-func _create_layer(layer_index: int, node_count: int) -> void:
-	# 按给定的节点数量生成单层节点数据并加入 map_data
-	var nodes: Array[Dictionary] = []
-
-	for node_index in range(node_count):
-		var node_id := "%s_%s" % [layer_index, node_index]
-		var x := layer_index * NODE_X_SPACING
-		var y := _get_node_y_position(node_index, node_count)
-
-		var node := {
-			"id": node_id,
-			"layer": layer_index,
-			"index": node_index,
-			"type": TYPE_SMALL_EVENT,
-			"position": Vector2(x, y),
-			"connections": []
-		}
-		nodes.append(node)
-
-	map_data.append({
-		"layer": layer_index,
-		"nodes": nodes
-	})
+		for from_idx in range(layer_conns.size()):
+			var from_node: Dictionary = from_nodes[from_idx]
+			for to_idx in layer_conns[from_idx]:
+				var to_node: Dictionary = to_nodes[to_idx]
+				# 正向连接（向下推进）
+				_add_connection(from_node, to_node["id"])
+				# 反向连接（允许回头）
+				_add_connection(to_node, from_node["id"])
 
 
-func _has_valid_node_count_distribution(layer_node_counts: Array[int]) -> bool:
-	# 规则 1：整个地图最多允许一层有 4 个节点
-	var four_node_layer_count: int = 0
-	for count in layer_node_counts:
-		if count == 4:
-			four_node_layer_count += 1
-			if four_node_layer_count >= 2:
-				return false
-
-	# 规则 2：不允许连续两层都是 2 个节点
-	# 规则 3：不允许连续三层都是 3 个节点
-	for layer_index in range(1, layer_node_counts.size() - 1):
-		var current_count: int = layer_node_counts[layer_index]
-		var previous_count: int = layer_node_counts[layer_index - 1]
-
-		if current_count == 2 and previous_count == 2:
-			return false
-
-		if (
-			current_count == 3
-			and previous_count == 3
-			and layer_index >= 2
-			and layer_node_counts[layer_index - 2] == 3
-		):
-			return false
-
-	return true
+func _add_connection(from_node: Dictionary, to_node_id: String) -> void:
+	# 避免同一个节点重复连接到同一个目标节点
+	var conns: Array = from_node["connections"]
+	if not conns.has(to_node_id):
+		conns.append(to_node_id)
 
 
 func get_map_data() -> Array[Dictionary]:
 	# 返回当前地图数据，供外部脚本读取
 	return map_data
-
-
-func _get_node_y_position(node_index: int, node_count: int) -> float:
-	# 单节点层放在中间；2 节点层在中心上下各浮动固定距离；更多节点时上下边界固定，中间等距分布
-	if node_count <= 1:
-		return NODE_CENTER_Y
-
-	if node_count == 2:
-		return NODE_CENTER_Y - TWO_NODE_OFFSET + float(node_index) * (TWO_NODE_OFFSET * 2.0)
-
-	var ratio := float(node_index) / float(node_count - 1)
-	return lerpf(NODE_TOP_Y, NODE_BOTTOM_Y, ratio)
-
-
-func _get_node_count_for_layer(layer_index: int) -> int:
-	# 第一层作为起点、最后一层作为终点，都固定只有 1 个节点
-	if layer_index == 0 or layer_index == LAYER_COUNT - 1:
-		return 1
-
-	return rng.randi_range(MIN_NODES_PER_LAYER, MAX_NODES_PER_LAYER)
-
-
-func _create_paths() -> void:
-	# 按节点顺序连接相邻层，保证横置地图中的路线不会上下交叉
-	for layer_index in range(LAYER_COUNT - 1):
-		var current_nodes: Array = map_data[layer_index]["nodes"]
-		var next_nodes: Array = map_data[layer_index + 1]["nodes"]
-		_create_non_crossing_layer_connections(current_nodes, next_nodes)
-
-
-func _create_non_crossing_layer_connections(current_nodes: Array, next_nodes: Array) -> void:
-	# 先清空本层旧连接，再按顺序重新建立非交叉连接
-	for current_node in current_nodes:
-		var connections: Array = current_node["connections"]
-		connections.clear()
-
-	if current_nodes.is_empty() or next_nodes.is_empty():
-		return
-
-	# 每个当前层节点至少连接到下一层中顺序对应的节点
-	for current_index in range(current_nodes.size()):
-		var next_index := _map_ordered_index(current_index, current_nodes.size(), next_nodes.size())
-		var current_node: Dictionary = current_nodes[current_index]
-		var next_node: Dictionary = next_nodes[next_index]
-		_add_connection(current_node, next_node["id"])
-
-	# 每个下一层节点也至少拥有一个来自上一层的入口，仍然按顺序分配，避免交叉
-	for next_index in range(next_nodes.size()):
-		var previous_index := _map_ordered_index(next_index, next_nodes.size(), current_nodes.size())
-		var previous_node: Dictionary = current_nodes[previous_index]
-		var next_node: Dictionary = next_nodes[next_index]
-		_add_connection(previous_node, next_node["id"])
-
-
-func _map_ordered_index(source_index: int, source_count: int, target_count: int) -> int:
-	# 把一个有序节点序号映射到另一层的有序节点序号，不加入随机偏移，防止路线交叉
-	if target_count <= 1 or source_count <= 1:
-		return 0
-
-	var normalized_position := float(source_index) / float(source_count - 1)
-	return clampi(int(round(normalized_position * float(target_count - 1))), 0, target_count - 1)
-
-
-func _ensure_all_nodes_connected() -> void:
-	# 非交叉连接生成时已经同时保证了出口和入口，这里保留函数方便生成流程阅读
-	return
-
-
-func _add_connection(from_node: Dictionary, to_node_id: String) -> void:
-	# 避免同一个节点重复连接到同一个目标节点
-	var connections: Array = from_node["connections"]
-	if not connections.has(to_node_id):
-		connections.append(to_node_id)
-
-
-func _assign_node_types() -> void:
-	# 分配房间类型：起点固定 TYPE_START，终点固定 TYPE_BOSS
-	# 倒数第2~4层（Layer LAYER_COUNT-4 到 LAYER_COUNT-2）必定生成大型房间
-	# 大型房间层不会生成 4 个节点，且整个地图最多存在一层大型房间
-	# 每层中各节点的房间类型可以不同：其余节点随机为小型或中型，中型房间前后不能连接中型
-
-	# Step 1: 确定大型房间层（必须从候选范围选一层，优先选节点数 < 4 的层）
-	const BIG_EVENT_MIN_LAYER: int = LAYER_COUNT - 3
-	const BIG_EVENT_MAX_LAYER: int = LAYER_COUNT - 2
-
-	var big_candidates: Array[int] = []
-	for layer_index in range(BIG_EVENT_MIN_LAYER, BIG_EVENT_MAX_LAYER + 1):
-		var nodes: Array = map_data[layer_index]["nodes"]
-		if nodes.size() < 4:  # 大型房间层不生成 4 个节点
-			big_candidates.append(layer_index)
-
-	# 必定生成大型房间：有候选时随机选一个，否则从合法范围内强制选一个
-	var big_layer: int
-	if not big_candidates.is_empty():
-		big_layer = big_candidates[rng.randi() % big_candidates.size()]
-	else:
-		big_layer = rng.randi_range(BIG_EVENT_MIN_LAYER, BIG_EVENT_MAX_LAYER)
-
-	# Step 2: 为每层每个节点独立分配类型
-	for layer_data in map_data:
-		var layer_index: int = layer_data["layer"]
-		var nodes: Array = layer_data["nodes"]
-
-		if layer_index == 0:
-			for node in nodes:
-				node["type"] = TYPE_START
-		elif layer_index == LAYER_COUNT - 1:
-			for node in nodes:
-				node["type"] = TYPE_BOSS
-		elif layer_index == big_layer:
-			for node in nodes:
-				node["type"] = TYPE_BIG_EVENT
-		else:
-			# 其余层：每个节点独立随机为小型或中型
-			# 中型房间前后不能连接中型（硬约束：有邻接中型则禁止）
-			for node in nodes:
-				var can_be_medium := not _has_medium_incoming(layer_index, node)
-				if can_be_medium and rng.randi() % 2 == 0:
-					node["type"] = TYPE_MEDIUM_EVENT
-				else:
-					node["type"] = TYPE_SMALL_EVENT
-
-
-func _has_medium_incoming(layer_index: int, node: Dictionary) -> bool:
-	# 检查前一层是否有 MEDIUM 节点通过路线连接到当前节点
-	var prev_layer_data: Dictionary = map_data[layer_index - 1]
-	var prev_nodes: Array = prev_layer_data["nodes"]
-	for prev_node in prev_nodes:
-		var prev_connections: Array = prev_node["connections"]
-		if prev_connections.has(node["id"]) and prev_node["type"] == TYPE_MEDIUM_EVENT:
-			return true
-	return false
 
 
 func _build_node_data_index() -> void:
@@ -361,12 +196,12 @@ func _build_node_data_index() -> void:
 
 
 func _update_camera_limits() -> void:
-	# 根据横置地图宽度计算镜头左右边界，并把镜头放回起点附近
-	camera_min_x = -CAMERA_LEFT_PADDING
-	camera_max_x = float(LAYER_COUNT - 1) * NODE_X_SPACING + CAMERA_RIGHT_PADDING
+	# 根据纵向地图高度计算镜头上下边界，并把镜头放回起点附近
+	camera_min_y = -CAMERA_TOP_PADDING
+	camera_max_y = float(LAYER_COUNT - 1) * NODE_Y_SPACING + CAMERA_BOTTOM_PADDING
 
 	if map_camera != null:
-		map_camera.position.x = clampf(0.0, camera_min_x, camera_max_x)
+		map_camera.position.y = clampf(0.0, camera_min_y, camera_max_y)
 
 
 func _draw_generated_map() -> void:
@@ -375,7 +210,6 @@ func _draw_generated_map() -> void:
 		return
 
 	_clear_drawn_map()
-	queue_redraw()
 
 	for layer_data in map_data:
 		var nodes: Array = layer_data["nodes"]
@@ -387,6 +221,7 @@ func _draw_generated_map() -> void:
 		current_node_id = SaveMgr.current_node_id
 	else:
 		current_node_id = _get_start_node_id()
+
 	_create_notation_node()
 	_move_notation_to(current_node_id)
 	_update_clickable_events()
@@ -451,7 +286,7 @@ func _move_notation_to(node_id: String) -> void:
 
 
 func _update_clickable_events() -> void:
-	# 只有当前节点 connections 中记录的下一个节点可以点击，其余 event 全部禁用
+	# 刷新所有节点的可点击状态和视觉表现；所有节点始终可见，仅当前节点的邻接节点可点击
 	var current_node_data: Dictionary = node_data_by_id.get(current_node_id, {})
 	var clickable_node_ids: Array = []
 	if current_node_data.has("connections"):
@@ -466,11 +301,14 @@ func _update_clickable_events() -> void:
 			button.disabled = not can_click
 
 		if node_id == current_node_id:
-			event_node.modulate = Color(1.0, 1.0, 0.65, 1.0)
+			event_node.modulate = Color(1.0, 1.0, 0.65, 1.0)   # 当前位置高亮
 		elif can_click:
-			event_node.modulate = Color(1.0, 1.0, 1.0, 1.0)
+			event_node.modulate = Color(1.0, 1.0, 1.0, 1.0)    # 可点击：正常亮度
 		else:
-			event_node.modulate = Color(0.45, 0.45, 0.45, 0.65)
+			event_node.modulate = Color(0.45, 0.45, 0.45, 0.65) # 不可点击：暗色
+
+	# 通知重绘，使连线更新为当前节点对应的邻接连线
+	queue_redraw()
 
 
 func _on_event_pressed(node_id: String) -> void:
@@ -556,7 +394,7 @@ func _get_texture_for_type(node_type: String) -> Texture2D:
 
 
 func print_map() -> void:
-	# 在输出面板打印地图结构，方便先确认生成结果
+	# 在输出面板打印地图结构，方便先确认布局
 	for layer_data in map_data:
 		print("第", layer_data["layer"] + 1, "层")
 
