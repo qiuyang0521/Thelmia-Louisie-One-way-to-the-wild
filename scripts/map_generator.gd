@@ -15,11 +15,8 @@ const TYPE_BIG_EVENT: String = "big"
 const TYPE_BOSS: String = "boss"
 # 鼠标悬停地点时的放大倍率
 const HOVER_SCALE: float = 1.12
-# 地点点击区域上限：建筑纹理很大且相邻建筑密集，
-# 交互 Button 若按纹理全尺寸覆盖会互相重叠，导致点击命中错误的地点，
-# 因此命中区域按纹理缩小（BUTTON_TEX_RATIO）并钳制在该上限内
-const BUTTON_MAX_SIZE: Vector2 = Vector2(160.0, 130.0)
-const BUTTON_TEX_RATIO: float = 0.45
+# 地点点击区域：略小于建筑纹理原图（BUTTON_TEX_RATIO）
+const BUTTON_TEX_RATIO: float = 0.9
 # 地图绘制资源
 const EVENT_SCENE: PackedScene = preload("res://scenes/event.tscn")
 const NOTATION_SCENE: PackedScene = preload("res://scenes/notation.tscn")
@@ -281,11 +278,13 @@ func _bind_place_node(node_data: Dictionary, place_node: Node2D) -> void:
 	if place_node is AnimatedSprite2D:
 		(place_node as AnimatedSprite2D).play()
 
-	# 动态挂一个透明 Button 处理交互；命中区域小于纹理，避免相邻建筑点击区重叠
+	# 动态挂一个完全透明的 Button 处理交互（任何状态均不可见、无边框），尺寸略小于纹理原图
 	var button := Button.new()
 	button.name = "Button"
-	button.flat = true
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var empty_style := StyleBoxEmpty.new()
+	for style_name in ["normal", "hover", "pressed", "disabled", "focus"]:
+		button.add_theme_stylebox_override(style_name, empty_style)
 	var hit_size := _get_place_hit_size(place_node)
 	button.offset_left = -hit_size.x * 0.5
 	button.offset_top = -hit_size.y * 0.5
@@ -299,11 +298,8 @@ func _bind_place_node(node_data: Dictionary, place_node: Node2D) -> void:
 
 
 func _get_place_hit_size(place_node: Node2D) -> Vector2:
-	# 点击命中区域：按纹理尺寸缩小到建筑主体附近，并钳制上限，
-	# 避免相邻建筑的透明 Button 互相重叠导致点击命中错误地点
-	var tex_size := _get_place_texture_size(place_node)
-	var hit_size := tex_size * BUTTON_TEX_RATIO
-	return Vector2(minf(hit_size.x, BUTTON_MAX_SIZE.x), minf(hit_size.y, BUTTON_MAX_SIZE.y))
+	# 点击命中区域：按纹理尺寸略缩小，贴近建筑原图大小
+	return _get_place_texture_size(place_node) * BUTTON_TEX_RATIO
 
 
 func _get_place_texture_size(place_node: Node2D) -> Vector2:
@@ -392,6 +388,8 @@ func _create_exposure_ui() -> void:
 	exposure_label = Label.new()
 	exposure_label.name = "ExposureLabel"
 	exposure_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 纯展示标签，不拦截鼠标事件，避免吞掉其下方地点的点击
+	exposure_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	exposure_label.add_theme_font_size_override("font_size", 28)
 	exposure_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
 	exposure_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
@@ -447,14 +445,14 @@ func _on_event_pressed(node_id: String) -> void:
 	var target_node: Dictionary = node_data_by_id.get(node_id, {})
 	var node_type: String = target_node.get("type", "")
 
-	var is_event_node := node_type == TYPE_SMALL_EVENT or node_type == TYPE_MEDIUM_EVENT or node_type == TYPE_BIG_EVENT
+	var is_event_node := node_type == TYPE_SMALL_EVENT or node_type == TYPE_MEDIUM_EVENT or node_type == TYPE_BIG_EVENT or node_type == TYPE_BOSS
 
 	if is_event_node:
-		# 事件类型节点（小型/中型/大型房间）：暂存节点 id，弹出事件界面
+		# 事件类型节点（小型/中型/大型房间与 Boss 点）：暂存节点 id，弹出事件界面
 		pending_node_id = node_id
 		_show_event_screen(node_id)
 	else:
-		# 起点或终点类型节点：直接前往该地点
+		# 起点类型节点：直接前往该地点
 		_move_to_node(node_id)
 
 
