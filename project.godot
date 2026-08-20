@@ -18,6 +18,13 @@ config/icon="res://icon.svg"
 [autoload]
 
 SaveMgr="*res://scripts/save_manager.gd"
+StretchGuard="*res://scripts/stretch_guard.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
 
 [input]
 

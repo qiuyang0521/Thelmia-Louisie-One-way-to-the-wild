@@ -14,9 +14,13 @@ static var body_index: int = -1
 static var pending_scene: String = ""
 static var pending_position: Vector2 = Vector2.ZERO
 
-# 地图状态：当前所在节点 id 与随机种子（供读档恢复地图）
+# 地图状态：当前所在节点 id、随机种子与地图库索引（供读档恢复地图）
 static var current_node_id: String = ""
 static var map_seed: int = 0
+static var map_index: int = -1
+
+# 暴露度：玩家每进入一个新地点自动加一
+static var exposure_level: int = 0
 
 
 # ==================== 工具方法 ====================
@@ -40,6 +44,8 @@ static func save_to_slot(slot: int) -> void:
 	config.set_value("character", "body_index", body_index)
 	config.set_value("map", "current_node_id", current_node_id)
 	config.set_value("map", "seed", map_seed)
+	config.set_value("map", "map_index", map_index)
+	config.set_value("map", "exposure_level", exposure_level)
 	config.set_value("meta", "timestamp", Time.get_datetime_string_from_system())
 	config.save(_slot_path(slot))
 
@@ -60,6 +66,8 @@ static func load_from_slot(slot: int) -> Dictionary:
 		"body_index": config.get_value("character", "body_index", -1),
 		"current_node_id": config.get_value("map", "current_node_id", ""),
 		"map_seed": config.get_value("map", "seed", 0),
+		"map_index": config.get_value("map", "map_index", -1),
+		"exposure_level": config.get_value("map", "exposure_level", 0),
 		"timestamp": config.get_value("meta", "timestamp", "")
 	}
 
@@ -99,6 +107,8 @@ static func reset_state() -> void:
 	pending_position = Vector2.ZERO
 	current_node_id = ""
 	map_seed = 0
+	map_index = -1
+	exposure_level = 0
 	print("[SaveManager] 运行时状态已重置")
 
 
@@ -116,5 +126,7 @@ static func delete_all_saves() -> void:
 	pending_position = Vector2.ZERO
 	current_node_id = ""
 	map_seed = 0
+	map_index = -1
+	exposure_level = 0
 
 	print("[SaveManager] 所有存档已清除")
