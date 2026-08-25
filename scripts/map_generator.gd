@@ -58,6 +58,10 @@ var active_event_screen: Node2D = null
 var pending_node_id: String = ""
 # 屏幕顶部暴露度数值标签
 var exposure_label: Label = null
+# 屏幕顶部有机物数值标签
+var organic_label: Label = null
+# 有机物归零后的游戏结束界面是否已弹出
+var game_over_shown: bool = false
 # 地点悬停缩放动画：节点 id -> 当前 Tween
 var hover_tweens: Dictionary = {}
 
@@ -71,8 +75,9 @@ func _ready() -> void:
 	event_container.name = "EventContainer"
 	add_child(event_container)
 
-	# 创建屏幕顶部的暴露度显示
+	# 创建屏幕顶部的暴露度与有机物显示
 	_create_exposure_ui()
+	_create_organic_ui()
 
 	# 随机从地图库选取地图生成
 	generate_map()
@@ -95,8 +100,8 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# 监听暂停动作（Escape 键），弹出暂停界面
-	if event.is_action_pressed("pause") and not get_tree().paused:
+	# 监听暂停动作（Escape 键），弹出暂停界面；游戏结束后不再响应暂停
+	if event.is_action_pressed("pause") and not get_tree().paused and not game_over_shown:
 		var pause_screen := PAUSE_SCREEN_SCENE.instantiate() as CanvasLayer
 		get_tree().current_scene.add_child(pause_screen)
 
@@ -367,16 +372,22 @@ func _move_notation_to(node_id: String) -> void:
 
 
 func _move_to_node(node_id: String) -> void:
-	# 玩家实际前往新地点的统一入口：更新位置、暴露度加一、移动 notation 并刷新显示
+	# 玩家实际前往新地点的统一入口：更新位置、暴露度加一、有机物减一、移动 notation 并刷新显示
 	if node_id == "" or node_id == current_node_id:
 		return
 
 	current_node_id = node_id
 	SaveMgr.current_node_id = current_node_id
 	SaveMgr.exposure_level += 1
+	SaveMgr.organic_level -= 1
 	_move_notation_to(current_node_id)
 	_update_clickable_events()
 	_refresh_exposure_label()
+	_refresh_organic_label()
+
+	# 有机物耗尽：弹出游戏结束界面
+	if SaveMgr.organic_level <= 0:
+		_show_game_over()
 
 
 func _create_exposure_ui() -> void:
@@ -407,6 +418,92 @@ func _refresh_exposure_label() -> void:
 	# 将最新暴露度同步到顶部标签
 	if exposure_label != null:
 		exposure_label.text = "暴露度：%d" % SaveMgr.exposure_level
+
+
+func _create_organic_ui() -> void:
+	# 在屏幕顶部创建有机物数值标签（与暴露度样式一致，显示在其下方一行）
+	var ui_layer := CanvasLayer.new()
+	ui_layer.name = "OrganicUI"
+	add_child(ui_layer)
+
+	organic_label = Label.new()
+	organic_label.name = "OrganicLabel"
+	organic_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 纯展示标签，不拦截鼠标事件，避免吞掉其下方地点的点击
+	organic_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	organic_label.add_theme_font_size_override("font_size", 28)
+	organic_label.add_theme_color_override("font_color", Color(0.8, 1.0, 0.85))
+	organic_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
+	organic_label.add_theme_constant_override("outline_size", 6)
+	# 横向铺满、紧贴暴露度标签下方，使文字水平居中显示
+	organic_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	organic_label.offset_top = 56.0
+	organic_label.offset_bottom = 96.0
+	ui_layer.add_child(organic_label)
+
+	_refresh_organic_label()
+
+
+func _refresh_organic_label() -> void:
+	# 将最新有机物数值同步到顶部标签
+	if organic_label != null:
+		organic_label.text = "有机物：%d" % SaveMgr.organic_level
+
+
+func _show_game_over() -> void:
+	# 有机物归零：弹出全屏游戏结束界面，提供返回标题按钮
+	if game_over_shown:
+		return
+	game_over_shown = true
+
+	var overlay := CanvasLayer.new()
+	overlay.name = "GameOverUI"
+	overlay.layer = 100
+	add_child(overlay)
+
+	# 半透明黑色遮罩覆盖全屏，拦截所有鼠标点击
+	var background := ColorRect.new()
+	background.color = Color(0.0, 0.0, 0.0, 0.75)
+	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(background)
+
+	# 居中容器：结束标题 + 返回标题按钮
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 32)
+	overlay.add_child(box)
+
+	var title := Label.new()
+	title.text = "游戏结束"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 72)
+	title.add_theme_color_override("font_color", Color(0.9, 0.25, 0.25))
+	title.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.9))
+	title.add_theme_constant_override("outline_size", 8)
+	box.add_child(title)
+
+	var hint := Label.new()
+	hint.text = "有机物已耗尽，你们的旅程到此为止……"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 24)
+	hint.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.85))
+	box.add_child(hint)
+
+	var back_button := Button.new()
+	back_button.text = "返回标题"
+	back_button.custom_minimum_size = Vector2(220.0, 56.0)
+	back_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	back_button.pressed.connect(_on_game_over_back_pressed)
+	box.add_child(back_button)
+
+
+func _on_game_over_back_pressed() -> void:
+	# 游戏结束后返回标题画面：重置运行时状态并切换场景
+	SaveMgr.reset_state()
+	get_tree().change_scene_to_file("res://scenes/start_screen.tscn")
 
 
 func _update_clickable_events() -> void:
