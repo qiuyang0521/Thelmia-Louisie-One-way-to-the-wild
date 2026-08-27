@@ -62,6 +62,9 @@ var exposure_label: Label = null
 var organic_label: Label = null
 # 有机物归零后的游戏结束界面是否已弹出
 var game_over_shown: bool = false
+# 鼠标拖拽移动镜头状态：是否正在拖拽及上一帧鼠标位置（世界坐标）
+var is_dragging: bool = false
+var last_drag_position: Vector2 = Vector2.ZERO
 # 地点悬停缩放动画：节点 id -> 当前 Tween
 var hover_tweens: Dictionary = {}
 
@@ -95,8 +98,9 @@ func _process(delta: float) -> void:
 	if horizontal_direction == 0.0 and vertical_direction == 0.0:
 		return
 
-	map_camera.position.x = clampf(map_camera.position.x + horizontal_direction * CAMERA_MOVE_SPEED * delta, camera_min_x, camera_max_x)
-	map_camera.position.y = clampf(map_camera.position.y + vertical_direction * CAMERA_MOVE_SPEED * delta, camera_min_y, camera_max_y)
+	map_camera.position.x += horizontal_direction * CAMERA_MOVE_SPEED * delta
+	map_camera.position.y += vertical_direction * CAMERA_MOVE_SPEED * delta
+	_clamp_camera()
 
 
 func _input(event: InputEvent) -> void:
@@ -105,13 +109,30 @@ func _input(event: InputEvent) -> void:
 		var pause_screen := PAUSE_SCREEN_SCENE.instantiate() as CanvasLayer
 		get_tree().current_scene.add_child(pause_screen)
 
-	# 鼠标滚轮缩放地图
+	# 鼠标滚轮缩放地图；左键按下/抬起开始/结束拖拽移动镜头；游戏结束后禁用拖拽
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
 		if mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_change_zoom(ZOOM_STEP)
 		elif mouse_event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_change_zoom(1.0 / ZOOM_STEP)
+		elif mouse_event.button_index == MOUSE_BUTTON_LEFT and not game_over_shown:
+			if mouse_event.pressed:
+				is_dragging = true
+				last_drag_position = get_global_mouse_position()
+			else:
+				is_dragging = false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	# 鼠标拖拽移动镜头：放在未处理输入阶段，避免与地点按钮的点击冲突；
+	# 地图内容跟随鼠标移动，因此镜头向鼠标位移的反方向移动（按缩放比例换算）
+	if event is InputEventMouseMotion and is_dragging:
+		var motion := event as InputEventMouseMotion
+		if map_camera != null:
+			map_camera.position -= motion.relative / map_camera.zoom
+			_clamp_camera()
+		last_drag_position = get_global_mouse_position()
 
 
 func _draw() -> void:
@@ -230,6 +251,16 @@ func _change_zoom(factor: float) -> void:
 	var new_zoom := clampf(map_camera.zoom.x * factor, ZOOM_MIN, ZOOM_MAX)
 	map_camera.zoom = Vector2(new_zoom, new_zoom)
 	_update_camera_limits()
+	_clamp_camera()
+
+
+func _clamp_camera() -> void:
+	# 将镜头位置钳制在边界内；键盘移动、鼠标拖拽与缩放共用同一套边界，保证最外边缘一致
+	if map_camera == null:
+		return
+
+	map_camera.position.x = clampf(map_camera.position.x, camera_min_x, camera_max_x)
+	map_camera.position.y = clampf(map_camera.position.y, camera_min_y, camera_max_y)
 
 
 func _draw_generated_map() -> void:
