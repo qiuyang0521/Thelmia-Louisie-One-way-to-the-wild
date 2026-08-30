@@ -22,12 +22,17 @@ const DESC_BG_COLOR: Color = Color(0.1, 0.1, 0.18, 0.92)
 const OPTION_BG_COLOR: Color = Color(0.15, 0.15, 0.25, 0.9)
 # 选项按钮悬停色
 const OPTION_HOVER_COLOR: Color = Color(0.25, 0.25, 0.4, 0.95)
-# 事件界面关闭时发出信号，通知地图更新玩家位置
-signal dismissed
+# 退回地图按钮文字颜色（与普通选项区分，提示其不消耗行动点）
+const BACK_TO_MAP_COLOR: Color = Color(0.65, 0.8, 0.95)
+# 事件界面关闭时发出信号：option_index 为选中的选项索引，
+# 为 -1 表示玩家选择了"退回地图"（不算行动，不消耗行动点）
+signal dismissed(option_index: int)
 # 事件描述文本标签
 var description_label: RichTextLabel
 # 四个选项按钮数组
 var option_buttons: Array[Button] = []
+# 退回地图按钮（不消耗行动点）
+var back_to_map_button: Button = null
 
 
 func _ready() -> void:
@@ -84,11 +89,6 @@ func _build_option_buttons(parent: CanvasLayer) -> void:
 	options_container.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
 	options_container.offset_left = -(OPTION_WIDTH + OPTION_RIGHT_MARGIN)
 	options_container.offset_right = -OPTION_RIGHT_MARGIN
-
-	# 4 个选项按钮总高度 = 4 * 按钮高度 + 3 * 间距
-	var total_height: float = 4.0 * OPTION_HEIGHT + 3.0 * OPTION_SPACING
-	options_container.offset_top = -(total_height / 2.0)
-	options_container.offset_bottom = total_height / 2.0
 	options_container.add_theme_constant_override("separation", int(OPTION_SPACING))
 	parent.add_child(options_container)
 
@@ -101,6 +101,26 @@ func _build_option_buttons(parent: CanvasLayer) -> void:
 		option_button.pressed.connect(_on_option_pressed.bind(i))
 		options_container.add_child(option_button)
 		option_buttons.append(option_button)
+
+	# 退回地图按钮：额外加一段间距与普通选项分隔，点击后直接回到地图
+	# 不算一次行动，不消耗行动点（但仍会正常执行移动结算）
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0.0, 12.0)
+	options_container.add_child(spacer)
+
+	back_to_map_button = Button.new()
+	back_to_map_button.name = "BackToMapButton"
+	back_to_map_button.custom_minimum_size = Vector2(OPTION_WIDTH, OPTION_HEIGHT)
+	back_to_map_button.text = "退回地图"
+	back_to_map_button.add_theme_color_override("font_color", BACK_TO_MAP_COLOR)
+	back_to_map_button.add_theme_color_override("font_hover_color", BACK_TO_MAP_COLOR)
+	back_to_map_button.pressed.connect(_on_back_to_map_pressed)
+	options_container.add_child(back_to_map_button)
+
+	# 多了一个退回按钮，重新计算容器总高度使其保持垂直居中
+	var total_height: float = 5.0 * OPTION_HEIGHT + 4.0 * OPTION_SPACING + 12.0
+	options_container.offset_top = -(total_height / 2.0)
+	options_container.offset_bottom = total_height / 2.0
 
 
 func show_event(description: String, options: Array = []) -> void:
@@ -118,12 +138,18 @@ func show_event(description: String, options: Array = []) -> void:
 
 
 func _on_option_pressed(option_index: int) -> void:
-	# 点击任意选项后，关闭事件界面并通知地图
+	# 点击普通选项：算作一次行动（由地图侧消耗行动点），关闭事件界面并通知地图
 	print("[EventScreen] 玩家选择了选项 ", option_index + 1)
-	dismiss_and_return()
+	dismiss_and_return(option_index)
 
 
-func dismiss_and_return() -> void:
-	# 发出关闭信号后从场景树中移除自己
-	dismissed.emit()
+func _on_back_to_map_pressed() -> void:
+	# 点击退回地图：不算行动、不消耗行动点，仅关闭事件界面
+	print("[EventScreen] 玩家选择退回地图")
+	dismiss_and_return(-1)
+
+
+func dismiss_and_return(option_index: int = -1) -> void:
+	# 发出关闭信号（携带选项索引）后从场景树中移除自己
+	dismissed.emit(option_index)
 	queue_free()

@@ -84,12 +84,13 @@ func _on_slot_pressed(slot: int) -> void:
 	var py: float = data.get("position_y", 0.0)
 	SaveMgr.pending_position = Vector2(px, py)
 
-	# 恢复地图状态：当前节点 id、地图随机种子、地图库索引、暴露度与有机物
+	# 恢复地图状态：当前节点 id、地图随机种子、地图库索引、暴露度、有机物与行动点
 	SaveMgr.current_node_id = data.get("current_node_id", "")
 	SaveMgr.map_seed = data.get("map_seed", 0)
 	SaveMgr.map_index = data.get("map_index", -1)
 	SaveMgr.exposure_level = data.get("exposure_level", 0)
 	SaveMgr.organic_level = data.get("organic_level", SaveMgr.ORGANIC_INITIAL)
+	SaveMgr.action_points = data.get("action_points", SaveMgr.ACTION_POINTS_INITIAL)
 
 	# 取消暂停（可能从暂停界面进入），切换场景
 	get_tree().paused = false

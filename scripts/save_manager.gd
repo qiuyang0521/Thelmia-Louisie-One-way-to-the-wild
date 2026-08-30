@@ -26,6 +26,10 @@ static var exposure_level: int = 0
 const ORGANIC_INITIAL: int = 10
 static var organic_level: int = ORGANIC_INITIAL
 
+# 行动点：初始 5，玩家在事件界面选择选项时减一（选择退回地图不消耗）
+const ACTION_POINTS_INITIAL: int = 5
+static var action_points: int = ACTION_POINTS_INITIAL
+
 
 # ==================== 工具方法 ====================
 
@@ -51,6 +55,7 @@ static func save_to_slot(slot: int) -> void:
 	config.set_value("map", "map_index", map_index)
 	config.set_value("map", "exposure_level", exposure_level)
 	config.set_value("map", "organic_level", organic_level)
+	config.set_value("map", "action_points", action_points)
 	config.set_value("meta", "timestamp", Time.get_datetime_string_from_system())
 	config.save(_slot_path(slot))
 
@@ -74,6 +79,7 @@ static func load_from_slot(slot: int) -> Dictionary:
 		"map_index": config.get_value("map", "map_index", -1),
 		"exposure_level": config.get_value("map", "exposure_level", 0),
 		"organic_level": config.get_value("map", "organic_level", ORGANIC_INITIAL),
+		"action_points": config.get_value("map", "action_points", ACTION_POINTS_INITIAL),
 		"timestamp": config.get_value("meta", "timestamp", "")
 	}
 
@@ -116,6 +122,7 @@ static func reset_state() -> void:
 	map_index = -1
 	exposure_level = 0
 	organic_level = ORGANIC_INITIAL
+	action_points = ACTION_POINTS_INITIAL
 	print("[SaveManager] 运行时状态已重置")
 
 
@@ -136,5 +143,6 @@ static func delete_all_saves() -> void:
 	map_index = -1
 	exposure_level = 0
 	organic_level = ORGANIC_INITIAL
+	action_points = ACTION_POINTS_INITIAL
 
 	print("[SaveManager] 所有存档已清除")

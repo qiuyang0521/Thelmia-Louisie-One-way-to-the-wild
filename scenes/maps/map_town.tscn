@@ -122,15 +122,15 @@ position = Vector2(53, -322)
 sprite_frames = SubResource("SpriteFrames_ns8wf")
 
 [node name="harbor" type="AnimatedSprite2D" parent="Background"]
-position = Vector2(17, 399)
+position = Vector2(17, 374)
 sprite_frames = SubResource("SpriteFrames_mrdyk")
 
 [node name="center_park" type="AnimatedSprite2D" parent="Background"]
-position = Vector2(21, 102)
+position = Vector2(13, 80)
 sprite_frames = SubResource("SpriteFrames_4prng")
 
 [node name="711" type="AnimatedSprite2D" parent="Background"]
-position = Vector2(502, -51)
+position = Vector2(473, -33)
 sprite_frames = SubResource("SpriteFrames_5qrag")
 
 [node name="church" type="AnimatedSprite2D" parent="Background"]
@@ -138,7 +138,7 @@ position = Vector2(678, -335)
 sprite_frames = SubResource("SpriteFrames_hgt8k")
 
 [node name="diner" type="AnimatedSprite2D" parent="Background"]
-position = Vector2(628, 161)
+position = Vector2(630, 177)
 sprite_frames = SubResource("SpriteFrames_7564c")
 
 [node name="gas_station" type="AnimatedSprite2D" parent="Background"]

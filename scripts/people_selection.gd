@@ -3,10 +3,10 @@ class_name PeopleSelection
 
 # ========== 角色资源配置 ==========
 # 头部纹理列表 —— 展示所有可选头部供玩家挑选
+# 注意：原 event.png 已在 60a6d4a 提交中重命名为 small.png，此处勿再引用旧名
 const HEAD_TEXTURES: Array[String] = [
 	"res://assets/Charactor/thyme.png",
 	"res://assets/Charactor/robot.png",
-	"res://assets/Charactor/event.png",
 ]
 
 # 身体纹理列表 —— 系统会从中随机抽取 3 个供玩家选择

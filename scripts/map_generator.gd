@@ -15,6 +15,8 @@ const TYPE_BIG_EVENT: String = "big"
 const TYPE_BOSS: String = "boss"
 # 鼠标悬停地点时的放大倍率
 const HOVER_SCALE: float = 1.12
+# 不可点击地点的灰度化强度：0=原色，1=完全灰度（代替原先的降低不透明度表示）
+const UNCLICKABLE_GRAY_AMOUNT: float = 1.0
 # 地点点击区域：略小于建筑纹理原图（BUTTON_TEX_RATIO）
 const BUTTON_TEX_RATIO: float = 0.9
 # 地图绘制资源
@@ -60,6 +62,8 @@ var pending_node_id: String = ""
 var exposure_label: Label = null
 # 屏幕顶部有机物数值标签
 var organic_label: Label = null
+# 屏幕顶部行动点指示标签
+var action_label: Label = null
 # 有机物归零后的游戏结束界面是否已弹出
 var game_over_shown: bool = false
 # 鼠标拖拽移动镜头状态：是否正在拖拽及上一帧鼠标位置（世界坐标）
@@ -67,6 +71,8 @@ var is_dragging: bool = false
 var last_drag_position: Vector2 = Vector2.ZERO
 # 地点悬停缩放动画：节点 id -> 当前 Tween
 var hover_tweens: Dictionary = {}
+# 不可点击地点共用的灰度化材质（懒加载创建）
+var gray_material: ShaderMaterial = null
 
 
 func _ready() -> void:
@@ -78,9 +84,8 @@ func _ready() -> void:
 	event_container.name = "EventContainer"
 	add_child(event_container)
 
-	# 创建屏幕顶部的暴露度与有机物显示
-	_create_exposure_ui()
-	_create_organic_ui()
+	# 创建屏幕顶部的状态显示：第一行行动点指示物，第二行暴露度与有机物
+	_create_status_ui()
 
 	# 随机从地图库选取地图生成
 	generate_map()
@@ -421,58 +426,67 @@ func _move_to_node(node_id: String) -> void:
 		_show_game_over()
 
 
-func _create_exposure_ui() -> void:
-	# 在屏幕顶部中央创建暴露度数值标签（CanvasLayer 不跟随地图镜头移动）
+func _create_status_ui() -> void:
+	# 屏幕顶部状态栏（CanvasLayer 不跟随地图镜头移动）：
+	# 第一行居中显示 5 个行动点指示物，第二行左右分栏显示暴露度与有机物
 	var ui_layer := CanvasLayer.new()
-	ui_layer.name = "ExposureUI"
+	ui_layer.name = "StatusUI"
 	add_child(ui_layer)
 
-	exposure_label = Label.new()
-	exposure_label.name = "ExposureLabel"
-	exposure_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# 纯展示标签，不拦截鼠标事件，避免吞掉其下方地点的点击
-	exposure_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	exposure_label.add_theme_font_size_override("font_size", 28)
-	exposure_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
-	exposure_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
-	exposure_label.add_theme_constant_override("outline_size", 6)
-	# 横向铺满、高度只占顶部一条，使文字水平居中显示
-	exposure_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	exposure_label.offset_top = 12.0
-	exposure_label.offset_bottom = 52.0
+	# 第一行：行动点指示物（圆点表示剩余行动点）
+	action_label = _create_status_label("ActionPointsLabel", Color(1.0, 0.9, 0.55))
+	action_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	action_label.offset_top = 8.0
+	action_label.offset_bottom = 48.0
+	ui_layer.add_child(action_label)
+
+	# 第二行左半：暴露度
+	exposure_label = _create_status_label("ExposureLabel", Color(1.0, 0.95, 0.8))
+	exposure_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	exposure_label.anchor_right = 0.5
+	exposure_label.offset_top = 52.0
+	exposure_label.offset_bottom = 92.0
 	ui_layer.add_child(exposure_label)
 
+	# 第二行右半：有机物
+	organic_label = _create_status_label("OrganicLabel", Color(0.8, 1.0, 0.85))
+	organic_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	organic_label.anchor_left = 0.5
+	organic_label.offset_top = 52.0
+	organic_label.offset_bottom = 92.0
+	ui_layer.add_child(organic_label)
+
+	_refresh_action_points_label()
 	_refresh_exposure_label()
+	_refresh_organic_label()
+
+
+func _create_status_label(label_name: String, font_color: Color) -> Label:
+	# 创建统一样式的顶部状态标签：居中文本、黑色描边、不拦截鼠标
+	var label := Label.new()
+	label.name = label_name
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 纯展示标签，不拦截鼠标事件，避免吞掉其下方地点的点击
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", 28)
+	label.add_theme_color_override("font_color", font_color)
+	label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
+	label.add_theme_constant_override("outline_size", 6)
+	return label
+
+
+func _refresh_action_points_label() -> void:
+	# 将最新行动点同步到顶部指示物：实心圆点为剩余，空心圆点为已消耗
+	if action_label != null:
+		var remaining: int = clampi(SaveMgr.action_points, 0, SaveMgr.ACTION_POINTS_INITIAL)
+		var used: int = SaveMgr.ACTION_POINTS_INITIAL - remaining
+		action_label.text = "行动点  %s  %s" % ["●".repeat(remaining), "○".repeat(used)]
 
 
 func _refresh_exposure_label() -> void:
 	# 将最新暴露度同步到顶部标签
 	if exposure_label != null:
 		exposure_label.text = "暴露度：%d" % SaveMgr.exposure_level
-
-
-func _create_organic_ui() -> void:
-	# 在屏幕顶部创建有机物数值标签（与暴露度样式一致，显示在其下方一行）
-	var ui_layer := CanvasLayer.new()
-	ui_layer.name = "OrganicUI"
-	add_child(ui_layer)
-
-	organic_label = Label.new()
-	organic_label.name = "OrganicLabel"
-	organic_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# 纯展示标签，不拦截鼠标事件，避免吞掉其下方地点的点击
-	organic_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	organic_label.add_theme_font_size_override("font_size", 28)
-	organic_label.add_theme_color_override("font_color", Color(0.8, 1.0, 0.85))
-	organic_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
-	organic_label.add_theme_constant_override("outline_size", 6)
-	# 横向铺满、紧贴暴露度标签下方，使文字水平居中显示
-	organic_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	organic_label.offset_top = 56.0
-	organic_label.offset_bottom = 96.0
-	ui_layer.add_child(organic_label)
-
-	_refresh_organic_label()
 
 
 func _refresh_organic_label() -> void:
@@ -547,24 +561,58 @@ func _update_clickable_events() -> void:
 	for node_id in event_nodes.keys():
 		var event_node: Node2D = event_nodes[node_id]
 		var button: Button = event_node.get_node_or_null("Button") as Button
-		var can_click := clickable_node_ids.has(node_id)
+		# 当前位置若是事件类型地点，也可点击以重新进入事件选择界面（不发生移动）
+		var node_type: String = node_data_by_id.get(node_id, {}).get("type", "")
+		var is_current_event: bool = (node_id == current_node_id) and _is_event_type(node_type)
+		var can_click: bool = clickable_node_ids.has(node_id) or is_current_event
 
 		if button != null:
 			button.disabled = not can_click
 
 		if node_id == current_node_id:
 			event_node.modulate = Color(1.0, 1.0, 0.65, 1.0)   # 当前位置高亮
+			event_node.material = null
 		elif can_click:
 			event_node.modulate = Color(1.0, 1.0, 1.0, 1.0)    # 可点击：正常亮度
+			event_node.material = null
 		else:
-			event_node.modulate = Color(0.45, 0.45, 0.45, 0.65) # 不可点击：暗色
+			event_node.modulate = Color(1.0, 1.0, 1.0, 1.0)    # 不可点击：保持不透明
+			event_node.material = _get_gray_material()         # 改用提升灰度值表示
 
 	# 通知重绘，使连线更新为当前节点对应的邻接连线
 	queue_redraw()
 
 
+func _get_gray_material() -> ShaderMaterial:
+	# 懒加载创建所有不可点击地点共用的灰度化材质
+	# 按亮度权重（Rec.601）去饱和，amount 控制灰度强度
+	if gray_material == null:
+		var shader := Shader.new()
+		shader.code = """shader_type canvas_item;
+uniform float amount : hint_range(0.0, 1.0) = 1.0;
+
+void fragment() {
+	vec4 tex_color = texture(TEXTURE, UV);
+	float gray = dot(tex_color.rgb, vec3(0.299, 0.587, 0.114));
+	COLOR = vec4(mix(tex_color.rgb, vec3(gray), amount), tex_color.a);
+}
+"""
+		gray_material = ShaderMaterial.new()
+		gray_material.shader = shader
+		gray_material.set_shader_parameter("amount", UNCLICKABLE_GRAY_AMOUNT)
+	return gray_material
+
+
 func _on_event_pressed(node_id: String) -> void:
 	# 点击合法 event 后：event 类型节点跳转事件界面，其余直接移动 notation
+	if node_id == current_node_id:
+		# 点击当前位置：事件类型地点可再次进入事件选择界面；
+		# 仅重新打开界面，不算移动，不消耗有机物、不增加暴露度
+		if _is_event_type(node_data_by_id.get(node_id, {}).get("type", "")):
+			pending_node_id = ""
+			_show_event_screen(node_id)
+		return
+
 	var current_node_data: Dictionary = node_data_by_id.get(current_node_id, {})
 	var clickable_node_ids: Array = current_node_data.get("connections", [])
 	if not clickable_node_ids.has(node_id):
@@ -573,15 +621,18 @@ func _on_event_pressed(node_id: String) -> void:
 	var target_node: Dictionary = node_data_by_id.get(node_id, {})
 	var node_type: String = target_node.get("type", "")
 
-	var is_event_node := node_type == TYPE_SMALL_EVENT or node_type == TYPE_MEDIUM_EVENT or node_type == TYPE_BIG_EVENT or node_type == TYPE_BOSS
-
-	if is_event_node:
+	if _is_event_type(node_type):
 		# 事件类型节点（小型/中型/大型房间与 Boss 点）：暂存节点 id，弹出事件界面
 		pending_node_id = node_id
 		_show_event_screen(node_id)
 	else:
 		# 起点类型节点：直接前往该地点
 		_move_to_node(node_id)
+
+
+func _is_event_type(node_type: String) -> bool:
+	# 判断节点类型是否会触发事件选择界面
+	return node_type == TYPE_SMALL_EVENT or node_type == TYPE_MEDIUM_EVENT or node_type == TYPE_BIG_EVENT or node_type == TYPE_BOSS
 
 
 func _show_event_screen(node_id: String) -> void:
@@ -604,9 +655,14 @@ func _show_event_screen(node_id: String) -> void:
 		)
 
 
-func _on_event_screen_dismissed() -> void:
-	# 事件界面关闭后：前往之前暂存的节点位置
+func _on_event_screen_dismissed(option_index: int) -> void:
+	# 事件界面关闭后：选择了普通选项算一次行动，消耗 1 点行动点；
+	# 选择退回地图（-1）不算行动、不消耗行动点；随后前往暂存的节点位置
 	active_event_screen = null
+
+	if option_index >= 0:
+		SaveMgr.action_points = maxi(SaveMgr.action_points - 1, 0)
+		_refresh_action_points_label()
 
 	if pending_node_id != "":
 		var target_node_id: String = pending_node_id
