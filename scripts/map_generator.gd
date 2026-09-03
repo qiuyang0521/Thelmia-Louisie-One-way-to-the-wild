@@ -31,6 +31,12 @@ const MAP_BASE: GDScript = preload("res://scripts/map_base.gd")
 # 路线线条样式
 const LINE_COLOR: Color = Color(0.85, 0.85, 0.85, 0.85)
 const LINE_WIDTH: float = 3.0
+# 骰子指示物绘制参数：每颗骰子占位宽度、形状外接圆半径、描边宽度与配色
+const DICE_CELL_WIDTH: float = 44.0
+const DICE_SHAPE_RADIUS: float = 15.0
+const DICE_SHAPE_OUTLINE_WIDTH: float = 3.0
+const DICE_COLOR_AVAILABLE: Color = Color(1.0, 0.9, 0.55, 1.0)
+const DICE_COLOR_SPENT: Color = Color(0.6, 0.6, 0.65, 0.6)
 # 生成完地图后发出信号，外部 UI 可以监听这个信号来绘制地图
 signal map_generated(map_data: Array[Dictionary])
 # 当前地图数据，每个元素代表一个节点
@@ -62,8 +68,8 @@ var pending_node_id: String = ""
 var exposure_label: Label = null
 # 屏幕顶部有机物数值标签
 var organic_label: Label = null
-# 屏幕顶部行动点指示标签
-var action_label: Label = null
+# 屏幕顶部骰子指示物（自绘多边形，不依赖字体字形）
+var dice_indicator: Control = null
 # 有机物归零后的游戏结束界面是否已弹出
 var game_over_shown: bool = false
 # 鼠标拖拽移动镜头状态：是否正在拖拽及上一帧鼠标位置（世界坐标）
@@ -84,7 +90,7 @@ func _ready() -> void:
 	event_container.name = "EventContainer"
 	add_child(event_container)
 
-	# 创建屏幕顶部的状态显示：第一行行动点指示物，第二行暴露度与有机物
+	# 创建屏幕顶部的状态显示：第一行骰子指示物，第二行暴露度与有机物
 	_create_status_ui()
 
 	# 随机从地图库选取地图生成
@@ -428,17 +434,21 @@ func _move_to_node(node_id: String) -> void:
 
 func _create_status_ui() -> void:
 	# 屏幕顶部状态栏（CanvasLayer 不跟随地图镜头移动）：
-	# 第一行居中显示 5 个行动点指示物，第二行左右分栏显示暴露度与有机物
+	# 第一行居中显示骰子指示物，第二行左右分栏显示暴露度与有机物
 	var ui_layer := CanvasLayer.new()
 	ui_layer.name = "StatusUI"
 	add_child(ui_layer)
 
-	# 第一行：行动点指示物（圆点表示剩余行动点）
-	action_label = _create_status_label("ActionPointsLabel", Color(1.0, 0.9, 0.55))
-	action_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	action_label.offset_top = 8.0
-	action_label.offset_bottom = 48.0
-	ui_layer.add_child(action_label)
+	# 第一行：骰子指示物（自绘三角/菱形/五边形，可用为实心、已消耗为空心描边）
+	dice_indicator = Control.new()
+	dice_indicator.name = "DiceIndicator"
+	# 纯展示控件，不拦截鼠标事件，避免吞掉其下方地点的点击
+	dice_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dice_indicator.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	dice_indicator.offset_top = 8.0
+	dice_indicator.offset_bottom = 52.0
+	dice_indicator.draw.connect(_on_dice_indicator_draw)
+	ui_layer.add_child(dice_indicator)
 
 	# 第二行左半：暴露度
 	exposure_label = _create_status_label("ExposureLabel", Color(1.0, 0.95, 0.8))
@@ -456,7 +466,7 @@ func _create_status_ui() -> void:
 	organic_label.offset_bottom = 92.0
 	ui_layer.add_child(organic_label)
 
-	_refresh_action_points_label()
+	_refresh_dice_indicator()
 	_refresh_exposure_label()
 	_refresh_organic_label()
 
@@ -475,12 +485,50 @@ func _create_status_label(label_name: String, font_color: Color) -> Label:
 	return label
 
 
-func _refresh_action_points_label() -> void:
-	# 将最新行动点同步到顶部指示物：实心圆点为剩余，空心圆点为已消耗
-	if action_label != null:
-		var remaining: int = clampi(SaveMgr.action_points, 0, SaveMgr.ACTION_POINTS_INITIAL)
-		var used: int = SaveMgr.ACTION_POINTS_INITIAL - remaining
-		action_label.text = "行动点  %s  %s" % ["●".repeat(remaining), "○".repeat(used)]
+func _refresh_dice_indicator() -> void:
+	# 请求重绘骰子指示物（具体绘制在 _on_dice_indicator_draw 中完成）
+	if dice_indicator != null:
+		dice_indicator.queue_redraw()
+
+
+func _on_dice_indicator_draw() -> void:
+	# 自绘骰子：按槽位顺序水平居中排列；可用骰子实心填充，已消耗骰子仅描边（空心）；
+	# 形状由档位决定：d4=三角形、d8=菱形、d12=五边形
+	if dice_indicator == null:
+		return
+
+	var tiers: Array[int] = SaveMgr.dice_tiers
+	var count: int = tiers.size()
+	if count == 0:
+		return
+
+	var total_width: float = count * DICE_CELL_WIDTH
+	var start_x: float = (dice_indicator.size.x - total_width) * 0.5 + DICE_CELL_WIDTH * 0.5
+	var center_y: float = dice_indicator.size.y * 0.5
+
+	for i in range(count):
+		# 档位→边数：d4(0)→3、d8(1)→4、d12(2)→5
+		var sides: int = clampi(tiers[i], SaveMgr.DieTier.D4, SaveMgr.DieTier.D12) + 3
+		var center := Vector2(start_x + i * DICE_CELL_WIDTH, center_y)
+		var points := _regular_polygon_points(center, DICE_SHAPE_RADIUS, sides)
+
+		if i < SaveMgr.dice_spent:
+			# 已消耗：仅描边（补回首点闭合轮廓）
+			var outline: PackedVector2Array = points.duplicate()
+			outline.append(points[0])
+			dice_indicator.draw_polyline(outline, DICE_COLOR_SPENT, DICE_SHAPE_OUTLINE_WIDTH, true)
+		else:
+			# 可用：实心填充
+			dice_indicator.draw_colored_polygon(points, DICE_COLOR_AVAILABLE)
+
+
+func _regular_polygon_points(center: Vector2, radius: float, sides: int) -> PackedVector2Array:
+	# 生成正多边形顶点（首个顶点朝正上方），用于绘制骰子形状
+	var points := PackedVector2Array()
+	for i in range(sides):
+		var angle: float = -PI * 0.5 + float(i) * TAU / float(sides)
+		points.append(center + Vector2(cos(angle), sin(angle)) * radius)
+	return points
 
 
 func _refresh_exposure_label() -> void:
@@ -656,18 +704,36 @@ func _show_event_screen(node_id: String) -> void:
 
 
 func _on_event_screen_dismissed(option_index: int) -> void:
-	# 事件界面关闭后：选择了普通选项算一次行动，消耗 1 点行动点；
-	# 选择退回地图（-1）不算行动、不消耗行动点；随后前往暂存的节点位置
+	# 事件界面关闭后：
+	# - 选择普通选项（option_index >= 0）：消耗一个骰子并掷骰，用掷骰结果结算事件；
+	# - 选择退回地图（option_index == -1）：不算行动、不消耗骰子；
+	# 随后前往暂存的节点位置
 	active_event_screen = null
 
 	if option_index >= 0:
-		SaveMgr.action_points = maxi(SaveMgr.action_points - 1, 0)
-		_refresh_action_points_label()
+		var roll_info: Dictionary = SaveMgr.consume_and_roll()
+		_refresh_dice_indicator()
+		_resolve_event_outcome(option_index, roll_info)
 
 	if pending_node_id != "":
 		var target_node_id: String = pending_node_id
 		pending_node_id = ""
 		_move_to_node(target_node_id)
+
+
+func _resolve_event_outcome(option_index: int, roll_info: Dictionary) -> void:
+	# 事件结算入口：根据所选选项与掷骰结果影响事件走向。
+	# roll_info 形如 {"tier": 档位, "roll": 点数, "result": 1-5}；无骰可用时为空字典。
+	# 说明：当前事件为占位内容，尚未接入按 result 分支的真实效果；
+	# 后续可在本函数内依据 result(1-5) 展开事件结算（成功/失败/收益等）。
+	if roll_info.is_empty():
+		print("[MapGenerator] 无可用骰子，选项 %d 未触发掷骰" % (option_index + 1))
+		return
+
+	var faces: int = SaveMgr.DIE_FACES[roll_info["tier"]]
+	print("[MapGenerator] 选项 %d 掷骰：d%d 掷出 %d → 结果 %d" % [
+		option_index + 1, faces, roll_info["roll"], roll_info["result"]
+	])
 
 
 func _get_start_node_id() -> String:

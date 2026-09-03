@@ -22,16 +22,16 @@ const DESC_BG_COLOR: Color = Color(0.1, 0.1, 0.18, 0.92)
 const OPTION_BG_COLOR: Color = Color(0.15, 0.15, 0.25, 0.9)
 # 选项按钮悬停色
 const OPTION_HOVER_COLOR: Color = Color(0.25, 0.25, 0.4, 0.95)
-# 退回地图按钮文字颜色（与普通选项区分，提示其不消耗行动点）
+# 退回地图按钮文字颜色（与普通选项区分，提示其不消耗骰子）
 const BACK_TO_MAP_COLOR: Color = Color(0.65, 0.8, 0.95)
 # 事件界面关闭时发出信号：option_index 为选中的选项索引，
-# 为 -1 表示玩家选择了"退回地图"（不算行动，不消耗行动点）
+# 为 -1 表示玩家选择了“退回地图”（不算行动，不消耗骰子）
 signal dismissed(option_index: int)
 # 事件描述文本标签
 var description_label: RichTextLabel
 # 四个选项按钮数组
 var option_buttons: Array[Button] = []
-# 退回地图按钮（不消耗行动点）
+# 退回地图按钮（不消耗骰子）
 var back_to_map_button: Button = null
 
 
@@ -103,7 +103,7 @@ func _build_option_buttons(parent: CanvasLayer) -> void:
 		option_buttons.append(option_button)
 
 	# 退回地图按钮：额外加一段间距与普通选项分隔，点击后直接回到地图
-	# 不算一次行动，不消耗行动点（但仍会正常执行移动结算）
+	# 不算一次行动，不消耗骰子（但仍会正常执行移动结算）
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0.0, 12.0)
 	options_container.add_child(spacer)
@@ -138,13 +138,13 @@ func show_event(description: String, options: Array = []) -> void:
 
 
 func _on_option_pressed(option_index: int) -> void:
-	# 点击普通选项：算作一次行动（由地图侧消耗行动点），关闭事件界面并通知地图
+	# 点击普通选项：算作一次行动（由地图侧消耗骰子并掷骰），关闭事件界面并通知地图
 	print("[EventScreen] 玩家选择了选项 ", option_index + 1)
 	dismiss_and_return(option_index)
 
 
 func _on_back_to_map_pressed() -> void:
-	# 点击退回地图：不算行动、不消耗行动点，仅关闭事件界面
+	# 点击退回地图：不算行动、不消耗骰子，仅关闭事件界面
 	print("[EventScreen] 玩家选择退回地图")
 	dismiss_and_return(-1)
 

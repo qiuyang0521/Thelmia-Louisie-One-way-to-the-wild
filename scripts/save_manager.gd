@@ -26,9 +26,105 @@ static var exposure_level: int = 0
 const ORGANIC_INITIAL: int = 10
 static var organic_level: int = ORGANIC_INITIAL
 
-# 行动点：初始 5，玩家在事件界面选择选项时减一（选择退回地图不消耗）
-const ACTION_POINTS_INITIAL: int = 5
-static var action_points: int = ACTION_POINTS_INITIAL
+# ========== 骰子系统（由原“行动点”改造而来） ==========
+# 每个骰子代表一次行动机会：在事件界面选择选项时消耗一个骰子并掷骰，
+# 掷出的点数按固定映射转换为 1-5 的结果，用于影响事件结算（退回地图不消耗）。
+# 骰子分 d4 / d8 / d12 三档，可提升档位（提升的触发方式待定，此处仅提供档位与升档接口）。
+enum DieTier { D4, D8, D12 }
+# 初始骰子数量（与原行动点上限保持一致）
+const DICE_INITIAL_COUNT: int = 5
+# 各档骰子的面数，按 DieTier 索引（d4=4、d8=8、d12=12）
+const DIE_FACES: Array[int] = [4, 8, 12]
+# 每个骰子槽位的档位（长度 = 骰子总数）
+static var dice_tiers: Array[int] = []
+# 已消耗骰子数量：槽位 i 在 i < dice_spent 时视为已消耗（消耗顺序为由前向后）
+static var dice_spent: int = 0
+# 最近一次掷骰映射得到的结果（1-5），0 表示尚未掷骰或无骰可用
+static var last_roll_result: int = 0
+
+
+func _ready() -> void:
+	# 自动加载启动时确保骰子已初始化（直接运行地图等未走新游戏/读档流程时也有效）
+	if dice_tiers.is_empty():
+		reset_dice()
+
+
+# ==================== 骰子操作 ====================
+
+static func reset_dice() -> void:
+	# 重置为初始骰子组：DICE_INITIAL_COUNT 个 d4，均未消耗
+	dice_tiers.clear()
+	for i in range(DICE_INITIAL_COUNT):
+		dice_tiers.append(DieTier.D4)
+	dice_spent = 0
+	last_roll_result = 0
+
+
+static func dice_available_count() -> int:
+	# 当前可用（未消耗）骰子数量
+	return maxi(dice_tiers.size() - dice_spent, 0)
+
+
+static func has_available_dice() -> bool:
+	# 是否还有可用骰子
+	return dice_available_count() > 0
+
+
+static func consume_and_roll() -> Dictionary:
+	# 消耗一个可用骰子并掷骰：返回 {"tier": 档位, "roll": 点数, "result": 映射结果}；
+	# 无骰可用时返回空字典（调用方据此判断是否触发掷骰）
+	if not has_available_dice():
+		return {}
+
+	var tier: int = dice_tiers[dice_spent]
+	dice_spent += 1
+
+	var faces: int = DIE_FACES[tier]
+	var roll: int = randi_range(1, faces)
+	var result: int = roll_result_from_roll(roll)
+	last_roll_result = result
+	return {"tier": tier, "roll": roll, "result": result}
+
+
+static func roll_result_from_roll(roll: int) -> int:
+	# 将掷骰点数按固定规则映射为 1-5 的结果：
+	# 1→1；2、3→2；4、5、6→3；7、8、9、10→4；11、12→5
+	if roll <= 1:
+		return 1
+	if roll <= 3:
+		return 2
+	if roll <= 6:
+		return 3
+	if roll <= 10:
+		return 4
+	return 5
+
+
+static func upgrade_die(index: int) -> bool:
+	# 将指定槽位骰子提升一档（d4→d8→d12）；索引非法或已是最高档时返回 false。
+	# 说明：提升的触发方式待定，此处仅提供升档能力，暂未接入任何调用点。
+	if index < 0 or index >= dice_tiers.size():
+		return false
+	if dice_tiers[index] >= DieTier.D12:
+		return false
+	dice_tiers[index] += 1
+	return true
+
+
+static func set_dice_from_save(tiers_raw: Variant, spent: int) -> void:
+	# 从存档数据恢复骰子：tiers_raw 为读档得到的普通数组（类型信息已丢失），spent 为已消耗数量；
+	# 数据缺失或非法时回退为初始骰子组
+	dice_tiers.clear()
+	if typeof(tiers_raw) == TYPE_ARRAY:
+		for t in tiers_raw:
+			dice_tiers.append(clampi(int(t), DieTier.D4, DieTier.D12))
+
+	if dice_tiers.is_empty():
+		reset_dice()
+		return
+
+	dice_spent = clampi(spent, 0, dice_tiers.size())
+	last_roll_result = 0
 
 
 # ==================== 工具方法 ====================
@@ -55,7 +151,8 @@ static func save_to_slot(slot: int) -> void:
 	config.set_value("map", "map_index", map_index)
 	config.set_value("map", "exposure_level", exposure_level)
 	config.set_value("map", "organic_level", organic_level)
-	config.set_value("map", "action_points", action_points)
+	config.set_value("map", "dice_tiers", dice_tiers)
+	config.set_value("map", "dice_spent", dice_spent)
 	config.set_value("meta", "timestamp", Time.get_datetime_string_from_system())
 	config.save(_slot_path(slot))
 
@@ -79,7 +176,8 @@ static func load_from_slot(slot: int) -> Dictionary:
 		"map_index": config.get_value("map", "map_index", -1),
 		"exposure_level": config.get_value("map", "exposure_level", 0),
 		"organic_level": config.get_value("map", "organic_level", ORGANIC_INITIAL),
-		"action_points": config.get_value("map", "action_points", ACTION_POINTS_INITIAL),
+		"dice_tiers": config.get_value("map", "dice_tiers", []),
+		"dice_spent": config.get_value("map", "dice_spent", 0),
 		"timestamp": config.get_value("meta", "timestamp", "")
 	}
 
@@ -122,7 +220,7 @@ static func reset_state() -> void:
 	map_index = -1
 	exposure_level = 0
 	organic_level = ORGANIC_INITIAL
-	action_points = ACTION_POINTS_INITIAL
+	reset_dice()
 	print("[SaveManager] 运行时状态已重置")
 
 
@@ -143,6 +241,6 @@ static func delete_all_saves() -> void:
 	map_index = -1
 	exposure_level = 0
 	organic_level = ORGANIC_INITIAL
-	action_points = ACTION_POINTS_INITIAL
+	reset_dice()
 
 	print("[SaveManager] 所有存档已清除")
