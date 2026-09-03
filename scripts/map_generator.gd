@@ -37,6 +37,14 @@ const DICE_SHAPE_RADIUS: float = 15.0
 const DICE_SHAPE_OUTLINE_WIDTH: float = 3.0
 const DICE_COLOR_AVAILABLE: Color = Color(1.0, 0.9, 0.55, 1.0)
 const DICE_COLOR_SPENT: Color = Color(0.6, 0.6, 0.65, 0.6)
+# 控制台（左上角调试按钮）布局与配色
+const CONSOLE_MARGIN: float = 8.0
+const CONSOLE_BUTTON_WIDTH: float = 88.0
+const CONSOLE_BUTTON_HEIGHT: float = 36.0
+const CONSOLE_PANEL_WIDTH: float = 172.0
+const CONSOLE_TIER_BUTTON_HEIGHT: float = 44.0
+const CONSOLE_PANEL_PADDING: float = 8.0
+const CONSOLE_BG_COLOR: Color = Color(0.08, 0.09, 0.13, 0.95)
 # 生成完地图后发出信号，外部 UI 可以监听这个信号来绘制地图
 signal map_generated(map_data: Array[Dictionary])
 # 当前地图数据，每个元素代表一个节点
@@ -70,6 +78,9 @@ var exposure_label: Label = null
 var organic_label: Label = null
 # 屏幕顶部骰子指示物（自绘多边形，不依赖字体字形）
 var dice_indicator: Control = null
+# 左上角控制台开关按钮与其下拉面板（用于选择骰子档位 d4/d8/d12）
+var console_button: Button = null
+var console_panel: ColorRect = null
 # 有机物归零后的游戏结束界面是否已弹出
 var game_over_shown: bool = false
 # 鼠标拖拽移动镜头状态：是否正在拖拽及上一帧鼠标位置（世界坐标）
@@ -466,6 +477,8 @@ func _create_status_ui() -> void:
 	organic_label.offset_bottom = 92.0
 	ui_layer.add_child(organic_label)
 
+	_build_console(ui_layer)
+
 	_refresh_dice_indicator()
 	_refresh_exposure_label()
 	_refresh_organic_label()
@@ -541,6 +554,74 @@ func _refresh_organic_label() -> void:
 	# 将最新有机物数值同步到顶部标签
 	if organic_label != null:
 		organic_label.text = "有机物：%d" % SaveMgr.organic_level
+
+
+func _build_console(parent: CanvasLayer) -> void:
+	# 左上角控制台：一个开关按钮 + 下拉面板（面板内提供 d4/d8/d12 三档供选择）
+	console_button = Button.new()
+	console_button.name = "ConsoleButton"
+	console_button.text = "控制台"
+	console_button.anchor_left = 0.0
+	console_button.anchor_top = 0.0
+	console_button.anchor_right = 0.0
+	console_button.anchor_bottom = 0.0
+	console_button.offset_left = CONSOLE_MARGIN
+	console_button.offset_top = CONSOLE_MARGIN
+	console_button.offset_right = CONSOLE_MARGIN + CONSOLE_BUTTON_WIDTH
+	console_button.offset_bottom = CONSOLE_MARGIN + CONSOLE_BUTTON_HEIGHT
+	console_button.pressed.connect(_on_console_toggled)
+	parent.add_child(console_button)
+
+	# 下拉面板：默认隐藏，点开关按钮后出现
+	var panel_top: float = CONSOLE_MARGIN + CONSOLE_BUTTON_HEIGHT + CONSOLE_MARGIN
+	var panel_height: float = 3.0 * CONSOLE_TIER_BUTTON_HEIGHT + 2.0 * CONSOLE_PANEL_PADDING + 2.0 * CONSOLE_PANEL_PADDING
+	console_panel = ColorRect.new()
+	console_panel.name = "ConsolePanel"
+	console_panel.color = CONSOLE_BG_COLOR
+	console_panel.anchor_left = 0.0
+	console_panel.anchor_top = 0.0
+	console_panel.anchor_right = 0.0
+	console_panel.anchor_bottom = 0.0
+	console_panel.offset_left = CONSOLE_MARGIN
+	console_panel.offset_top = panel_top
+	console_panel.offset_right = CONSOLE_MARGIN + CONSOLE_PANEL_WIDTH
+	console_panel.offset_bottom = panel_top + panel_height
+	console_panel.visible = false
+	parent.add_child(console_panel)
+
+	var tier_box := VBoxContainer.new()
+	tier_box.name = "TierBox"
+	tier_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tier_box.offset_left = CONSOLE_PANEL_PADDING
+	tier_box.offset_top = CONSOLE_PANEL_PADDING
+	tier_box.offset_right = -CONSOLE_PANEL_PADDING
+	tier_box.offset_bottom = -CONSOLE_PANEL_PADDING
+	tier_box.add_theme_constant_override("separation", int(CONSOLE_PANEL_PADDING))
+	console_panel.add_child(tier_box)
+
+	# 三个档位按钮：4 / 8 / 12 面
+	for tier in range(3):
+		var tier_button := Button.new()
+		tier_button.name = "Tier_%d" % tier
+		tier_button.custom_minimum_size = Vector2(0.0, CONSOLE_TIER_BUTTON_HEIGHT)
+		tier_button.text = "d%d（%d 面）" % [SaveMgr.DIE_FACES[tier], SaveMgr.DIE_FACES[tier]]
+		tier_button.pressed.connect(_on_console_tier_pressed.bind(tier))
+		tier_box.add_child(tier_button)
+
+
+func _on_console_toggled() -> void:
+	# 开关控制台面板
+	if console_panel != null:
+		console_panel.visible = not console_panel.visible
+
+
+func _on_console_tier_pressed(tier: int) -> void:
+	# 控制台选择骰子档位：将所有骰子设为所选面数，刷新指示物并收起面板
+	SaveMgr.set_all_dice_tier(tier)
+	_refresh_dice_indicator()
+	if console_panel != null:
+		console_panel.visible = false
+	print("[MapGenerator] 控制台：骰子已全部设为 d%d" % SaveMgr.DIE_FACES[tier])
 
 
 func _show_game_over() -> void:
@@ -703,15 +784,15 @@ func _show_event_screen(node_id: String) -> void:
 		)
 
 
-func _on_event_screen_dismissed(option_index: int) -> void:
+func _on_event_screen_dismissed(option_index: int, roll_info: Dictionary) -> void:
 	# 事件界面关闭后：
-	# - 选择普通选项（option_index >= 0）：消耗一个骰子并掷骰，用掷骰结果结算事件；
+	# - 选择普通选项（option_index >= 0）：骰子已在事件界面内消耗并掷出，
+	#   此处用回传的 roll_info 结算事件并刷新骰子指示物；
 	# - 选择退回地图（option_index == -1）：不算行动、不消耗骰子；
 	# 随后前往暂存的节点位置
 	active_event_screen = null
 
 	if option_index >= 0:
-		var roll_info: Dictionary = SaveMgr.consume_and_roll()
 		_refresh_dice_indicator()
 		_resolve_event_outcome(option_index, roll_info)
 

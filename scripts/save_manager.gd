@@ -111,6 +111,13 @@ static func upgrade_die(index: int) -> bool:
 	return true
 
 
+static func set_all_dice_tier(tier: int) -> void:
+	# 控制台/调试用：将所有骰子设为指定档位（d4/d8/d12）
+	var t: int = clampi(tier, DieTier.D4, DieTier.D12)
+	for i in range(dice_tiers.size()):
+		dice_tiers[i] = t
+
+
 static func set_dice_from_save(tiers_raw: Variant, spent: int) -> void:
 	# 从存档数据恢复骰子：tiers_raw 为读档得到的普通数组（类型信息已丢失），spent 为已消耗数量；
 	# 数据缺失或非法时回退为初始骰子组
