@@ -76,6 +76,8 @@ var pending_node_id: String = ""
 var exposure_label: Label = null
 # 屏幕顶部有机物数值标签
 var organic_label: Label = null
+# 屏幕顶部金币数值标签
+var gold_label: Label = null
 # 屏幕顶部骰子指示物（自绘多边形，不依赖字体字形）
 var dice_indicator: Control = null
 # 左上角控制台开关按钮与其下拉面板（用于选择骰子档位 d4/d8/d12）
@@ -461,27 +463,35 @@ func _create_status_ui() -> void:
 	dice_indicator.draw.connect(_on_dice_indicator_draw)
 	ui_layer.add_child(dice_indicator)
 
-	# 第二行左半：暴露度
+	# 第二行：暴露度 / 有机物 / 金币，三等分并排显示于同一水平行
 	exposure_label = _create_status_label("ExposureLabel", Color(1.0, 0.95, 0.8))
-	exposure_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	exposure_label.anchor_right = 0.5
+	exposure_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	exposure_label.anchor_right = 1.0 / 3.0
 	exposure_label.offset_top = 52.0
 	exposure_label.offset_bottom = 92.0
 	ui_layer.add_child(exposure_label)
 
-	# 第二行右半：有机物
 	organic_label = _create_status_label("OrganicLabel", Color(0.8, 1.0, 0.85))
-	organic_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	organic_label.anchor_left = 0.5
+	organic_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	organic_label.anchor_left = 1.0 / 3.0
+	organic_label.anchor_right = 2.0 / 3.0
 	organic_label.offset_top = 52.0
 	organic_label.offset_bottom = 92.0
 	ui_layer.add_child(organic_label)
+
+	gold_label = _create_status_label("GoldLabel", Color(1.0, 0.85, 0.4))
+	gold_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	gold_label.anchor_left = 2.0 / 3.0
+	gold_label.offset_top = 52.0
+	gold_label.offset_bottom = 92.0
+	ui_layer.add_child(gold_label)
 
 	_build_console(ui_layer)
 
 	_refresh_dice_indicator()
 	_refresh_exposure_label()
 	_refresh_organic_label()
+	_refresh_gold_label()
 
 
 func _create_status_label(label_name: String, font_color: Color) -> Label:
@@ -554,6 +564,12 @@ func _refresh_organic_label() -> void:
 	# 将最新有机物数值同步到顶部标签
 	if organic_label != null:
 		organic_label.text = "有机物：%d" % SaveMgr.organic_level
+
+
+func _refresh_gold_label() -> void:
+	# 将最新金币数量同步到顶部标签
+	if gold_label != null:
+		gold_label.text = "金币：%d" % SaveMgr.gold_count
 
 
 func _build_console(parent: CanvasLayer) -> void:
@@ -812,8 +828,12 @@ func _resolve_event_outcome(option_index: int, roll_info: Dictionary) -> void:
 		return
 
 	var faces: int = SaveMgr.DIE_FACES[roll_info["tier"]]
-	print("[MapGenerator] 选项 %d 掷骰：d%d 掷出 %d → 结果 %d" % [
-		option_index + 1, faces, roll_info["roll"], roll_info["result"]
+	# 使用骰子行动后按结果等级发放金币：结果 1~5 分别增加 1~5 枚金币
+	var result: int = roll_info["result"]
+	SaveMgr.gold_count += result
+	_refresh_gold_label()
+	print("[MapGenerator] 选项 %d 掷骰：d%d 掷出 %d → 结果 %d，获得金币 %d（累计 %d）" % [
+		option_index + 1, faces, roll_info["roll"], result, result, SaveMgr.gold_count
 	])
 
 

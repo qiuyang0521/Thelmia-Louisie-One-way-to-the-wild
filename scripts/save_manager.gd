@@ -26,6 +26,10 @@ static var exposure_level: int = 0
 const ORGANIC_INITIAL: int = 10
 static var organic_level: int = ORGANIC_INITIAL
 
+# 金币：初始 0，玩家每次使用骰子行动后，按掷骰结果等级（1-5）增加对应数量的金币
+const GOLD_INITIAL: int = 0
+static var gold_count: int = GOLD_INITIAL
+
 # ========== 骰子系统（由原“行动点”改造而来） ==========
 # 每个骰子代表一次行动机会：在事件界面选择选项时消耗一个骰子并掷骰，
 # 掷出的点数按固定映射转换为 1-5 的结果，用于影响事件结算（退回地图不消耗）。
@@ -158,6 +162,7 @@ static func save_to_slot(slot: int) -> void:
 	config.set_value("map", "map_index", map_index)
 	config.set_value("map", "exposure_level", exposure_level)
 	config.set_value("map", "organic_level", organic_level)
+	config.set_value("map", "gold_count", gold_count)
 	config.set_value("map", "dice_tiers", dice_tiers)
 	config.set_value("map", "dice_spent", dice_spent)
 	config.set_value("meta", "timestamp", Time.get_datetime_string_from_system())
@@ -183,6 +188,7 @@ static func load_from_slot(slot: int) -> Dictionary:
 		"map_index": config.get_value("map", "map_index", -1),
 		"exposure_level": config.get_value("map", "exposure_level", 0),
 		"organic_level": config.get_value("map", "organic_level", ORGANIC_INITIAL),
+		"gold_count": config.get_value("map", "gold_count", GOLD_INITIAL),
 		"dice_tiers": config.get_value("map", "dice_tiers", []),
 		"dice_spent": config.get_value("map", "dice_spent", 0),
 		"timestamp": config.get_value("meta", "timestamp", "")
@@ -227,6 +233,7 @@ static func reset_state() -> void:
 	map_index = -1
 	exposure_level = 0
 	organic_level = ORGANIC_INITIAL
+	gold_count = GOLD_INITIAL
 	reset_dice()
 	print("[SaveManager] 运行时状态已重置")
 
@@ -248,6 +255,7 @@ static func delete_all_saves() -> void:
 	map_index = -1
 	exposure_level = 0
 	organic_level = ORGANIC_INITIAL
+	gold_count = GOLD_INITIAL
 	reset_dice()
 
 	print("[SaveManager] 所有存档已清除")
